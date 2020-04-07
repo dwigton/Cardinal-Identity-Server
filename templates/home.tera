@@ -1,0 +1,28 @@
+{% extends "base" %}
+{% block title %}{{ title }}{% endblock title %}
+{% block head %}
+	{{super() }}
+{% endblock head %}
+{% block header %}
+<span>Welcome, {{ username }}!</span>
+<nav>
+	<form action="/logout" method="post">
+		<input type="submit" value="Logout"/>
+	</form>
+</nav>
+{% endblock header %}
+{% block content %}
+<table>
+	<h1>Authorized Client Applications</h1>
+	<thead>
+	<tr>
+		<th>Application</th>
+		<th>Client Id</th>
+		<th>Status</th>
+		<th>Scope</th>
+	</tr>
+	</thead>
+	<tbody>
+	</tbody>
+</table>
+{% endblock content %}

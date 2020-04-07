@@ -1,0 +1,16 @@
+{% extends "base" %}
+{% block title %}{{ title }}{% endblock title %}
+{% block head %}
+	{{super() }}
+{% endblock head %}
+{% block header %}
+{% endblock header %}
+{% block content %}
+<form action="login" method="post"> 
+<label for="username">Username</label>
+<input id="username" name="username" type="text" placeholder="Enter Username" required>
+<label for="password">Password</label>
+<input id="password" name="password" type="password" placeholder="Enter Password" required>
+<button type="submit">Login</button>
+</form>
+{% endblock content %}

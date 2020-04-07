@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="icon" href="/public/favicon.ico" />
+    <title>{% block title %}{% endblock title %} - Identity Vault</title>
+    {% endblock head %}
+</head>
+<body>
+    <header><h1>Identity Vault</h1>{% block header %}{% endblock header %}</header>
+    <main>{% block content %}{% endblock content %}</main>
+    <footer>
+        {% block footer %}
+        &copy; Copyright 2020 by <a href="http://www.stonecottageweb.com/">Daniel Wigton</a>.
+        {% endblock footer %}
+    </footer>
+</body>
+</html>
