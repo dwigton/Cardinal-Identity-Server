@@ -3,9 +3,13 @@ extern crate r2d2_diesel;
 extern crate r2d2;
 
 pub mod schema;
-pub mod user;
-pub mod application;
+pub mod auth_account;
+pub mod admin_auth_account;
+pub mod auth_key;
+pub mod grant_scope;
 pub mod client;
+pub mod identity_key;
+pub mod scope_authorization;
 
 use diesel::prelude::*;
 use diesel::ConnectionError;
@@ -33,12 +37,12 @@ pub fn init_pool() -> Pool {
     r2d2::Pool::builder().build(manager).expect("Failed to create database connection pool.")
 }
 
-pub fn establish_connection() -> Result<DbConn, ConnectionError> {
+pub fn establish_connection() -> Result<PgConnection, ConnectionError> {
     dotenv().ok();
 
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
 
-    DbConn(PgConnection::establish(&database_url)?)
+    PgConnection::establish(&database_url)
 }
 
 pub fn can_connect_to_url(database_url: &str) -> bool {
