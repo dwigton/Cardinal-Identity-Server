@@ -1,4 +1,5 @@
 use database::schema::account;
+use encryption::signing_key::SigningKey;
 
 #[derive(Insertable)]
 #[table_name = "account"]
@@ -35,6 +36,7 @@ pub struct UnlockedAccount {
     pub master_key_salt: [u8; 32],
     pub is_admin: bool,
     master_key: [u8; 32],
+    signing_key: encryption::signing_key::SigningKey,
 }
 
 impl NewAccount {

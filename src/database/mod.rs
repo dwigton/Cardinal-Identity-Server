@@ -3,13 +3,6 @@ extern crate r2d2_diesel;
 extern crate r2d2;
 
 pub mod schema;
-pub mod auth_account;
-pub mod admin_auth_account;
-pub mod auth_key;
-pub mod grant_scope;
-pub mod client;
-pub mod identity_key;
-pub mod scope_authorization;
 
 use diesel::prelude::*;
 use diesel::ConnectionError;
