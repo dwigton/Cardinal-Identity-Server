@@ -39,6 +39,7 @@ impl SigningKey {
         }
     }
 
+    // Fails if IV authentication fails.
     pub fn from_encrypted(encryption_key: &[u8], public: &[u8; PUBLIC_KEY_LENGTH], encrypted_key: &[u8]) -> CommonResult<SigningKey>{ 
         let decrypted_key = to_256(&decrypt(&encrypted_key, &encryption_key)?);
 
@@ -49,8 +50,8 @@ impl SigningKey {
         self.key_pair.sign(&data).to_bytes().to_vec()
     }
 
-    pub fn public_key(&self) -> [u8; 32] {
-        self.key_pair.public.to_bytes()
+    pub fn public_key(&self) -> Vec<u8> {
+        self.key_pair.public.to_bytes().to_vec()
     }
 
     pub fn encrypted_private_key(&self, encryption_key: &[u8]) -> Vec<u8> {

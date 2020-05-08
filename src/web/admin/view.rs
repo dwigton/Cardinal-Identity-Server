@@ -31,16 +31,3 @@ pub struct ScopeView {
     write: bool,
 }
 
-impl ClientView {
-    pub fn from_client_applications(clients: &[ClientApp], connection: &DbConn) {
-        let mut result = Vec::new();
-        for client in clients {
-            let grant_scopes = 
-            result::push(
-                ClientView {
-
-                    name: client.
-                }
-                );
-        }
-    }

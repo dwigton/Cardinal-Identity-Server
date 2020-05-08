@@ -1,7 +1,7 @@
 use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password, get_new_password};
-use model::user::User;
+use model::account::NewAccount;
 use model::exported_key::ExportedKey;
 use serde_json;
 use std::fs;
@@ -20,21 +20,21 @@ pub fn init() -> App<'static, 'static> {
       .arg(Arg::with_name("username")
            .short("u")
            .long("username")
-           .help("The user name to import.")
+           .help("The account to import.")
            .value_name("USERNAME")
            .takes_value(true)
       )
       .arg(Arg::with_name("password")
            .short("p")
            .long("password")
-           .help("The user's new password.")
+           .help("The account's new password.")
            .value_name("PASSWORD")
            .takes_value(true)
           )
       .arg(Arg::with_name("exportkey")
            .short("x")
            .long("exportkey")
-           .help("Required to release an encrypted export of the user's keys.")
+           .help("Required to release an encrypted export of the account's keys.")
            .value_name("EXPORT_KEY")
            .takes_value(true)
       )
@@ -89,19 +89,13 @@ pub fn run(matches: &ArgMatches) {
         },
     };
 
-    let mut user = User::new_from_export_key (
-        &username, 
-        &password, 
-        &export_key, 
-        &input, 
-        &passphrase)
-        .expect("Could not create user");
-
+    let mut account = NewAccount::new(&username, &password, &export_key, false);
+        
     let connection = establish_connection().unwrap();
 
-    match user.save(&connection) {
-        Ok(_) => println!("User \"{}\" created successfully.", username),
-        Err(e) => eprintln!("Could not save new user. Error \"{}\"", e),
+    match account.save(&connection) {
+        Ok(_) => println!("NewAccount \"{}\" created successfully.", username),
+        Err(e) => eprintln!("Could not save new account. Error \"{}\"", e),
     }
 }
 

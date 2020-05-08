@@ -1,7 +1,7 @@
 use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password, get_new_password};
-use model::user::User;
+use model::account::NewAccount;
 use serde_json;
 use std::fs;
 
@@ -18,14 +18,14 @@ pub fn init() -> App<'static, 'static> {
       .arg(Arg::with_name("username")
            .short("u")
            .long("username")
-           .help("The user name to export.")
+           .help("The account name to export.")
            .value_name("USERNAME")
            .takes_value(true)
       )
       .arg(Arg::with_name("password")
            .short("p")
            .long("password")
-           .help("The user's password.")
+           .help("The account's password.")
            .value_name("PASSWORD")
            .takes_value(true)
           )
@@ -69,14 +69,14 @@ pub fn run(matches: &ArgMatches) {
 
     let connection = establish_connection().unwrap();
 
-    let user = User::load(&username, &password, &connection);
+    let account = UnlockedAccount::load(&username, &password, &connection);
 
-    let user = match user {
+    let account = match account {
         Ok(u) => u,
-        Err(_) => panic!("User does not exist"),
+        Err(_) => panic!("Account does not exist"),
     };
 
-    match user.encode_key(&export_key, &passphrase){
+    match account.encode_key(&export_key, &passphrase){
         Ok(k) => {
             let output = serde_json::to_string(&k).expect("Key encoded improperly.");
             match matches.value_of("output") {

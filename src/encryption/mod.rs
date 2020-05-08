@@ -21,10 +21,7 @@ use encryption::miscreant::siv::Aes128PmacSiv;
 use base64::{encode, decode};
 use error::CommonResult;
 
-// Data exchange format to hide the details of the ecryption libraries used
-// Allows for a future change of encryption libraries.
-
-pub fn hash_password(password: &str) -> Result<String> {
+pub fn hash_password(password: &str) -> String {
 
     let salt = random_int_256();
     let hash = hash_salted_password(password, &salt);
@@ -34,7 +31,7 @@ pub fn hash_password(password: &str) -> Result<String> {
     merged[..32].copy_from_slice(&salt);
     merged[32..].copy_from_slice(&hash);
 
-    Ok(encode(&merged.to_vec()))
+    encode(&merged.to_vec())
 }
 
 pub fn hash_salted_password(password: &str, salt: &[u8]) -> [u8; 32] {

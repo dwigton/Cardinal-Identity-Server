@@ -3,7 +3,7 @@ use std::io::{Write, BufReader, BufRead};
 use clap::{App, SubCommand};
 use database;
 use cli::{get_input, get_new_password};
-use model::user::User;
+use model::account::{Account};
 use encryption::random_int_256;
 use database::establish_connection;
 use base64::encode;
@@ -31,14 +31,13 @@ pub fn run() {
     let password = get_new_password("Administrator User Password: ", "Reenter Admin User Password: ");
     let export_key = encode(&random_int_256());
 
-    let mut user = User::new(&admin_user_name, &password, &export_key);
-    user.admin = true;
+    let mut account = Account::new(&admin_user_name, &password, &export_key, true);
 
     let connection = establish_connection().unwrap();
 
-    match user.save(&connection) {
+    match account.save(&connection) {
         Ok(_) => (),
-        Err(e) => println!("Could not save new user. Error \"{}\"", e),
+        Err(e) => println!("Could not save new account. Error \"{}\"", e),
     }
 }
 

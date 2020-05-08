@@ -12,12 +12,14 @@ use self::dotenv::dotenv;
 use std::ops::Deref;
 
 // An alias to the type for a pool of Diesel Postgres connections
-pub type Pool = r2d2::Pool<ConnectionManager<PgConnection>>;
+pub type MyConnection = PgConnection;
+pub type Pool = r2d2::Pool<ConnectionManager<MyConnection>>;
 
-pub struct DbConn(pub r2d2::PooledConnection<ConnectionManager<PgConnection>>);
+pub struct DbConn(pub r2d2::PooledConnection<ConnectionManager<MyConnection>>);
+
 
 impl Deref for DbConn {
-    type Target = PgConnection;
+    type Target = MyConnection;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -26,18 +28,18 @@ impl Deref for DbConn {
 
 pub fn init_pool() -> Pool {
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
+    let manager = ConnectionManager::<MyConnection>::new(database_url);
     r2d2::Pool::builder().build(manager).expect("Failed to create database connection pool.")
 }
 
-pub fn establish_connection() -> Result<PgConnection, ConnectionError> {
+pub fn establish_connection() -> Result<MyConnection, ConnectionError> {
     dotenv().ok();
 
     let database_url = dotenv::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
 
-    PgConnection::establish(&database_url)
+    MyConnection::establish(&database_url)
 }
 
 pub fn can_connect_to_url(database_url: &str) -> bool {
-    PgConnection::establish(&database_url).is_ok()
+    MyConnection::establish(&database_url).is_ok()
 }
