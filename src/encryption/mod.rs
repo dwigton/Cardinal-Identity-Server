@@ -106,6 +106,46 @@ pub fn to_512(data: &[u8]) -> [u8; 64] {
     result
 }
 
+pub fn secure_hash(data: &[&[u8]]) -> [u8; 32] {
+    let mut hasher = Sha512Trunc256::new();
+    let mut hash_data = Vec::new();
+    
+    for slice in data {
+        hash_data.extend_from_slice(slice);
+    }
+
+    hasher.input(hash_data);
+
+    hasher.result().into()
+}
+
+
+pub fn pk_bytes(data: &[u8]) -> [u8; PUBLIC_KEY_LENGTH] {
+    if data.len() > PUBLIC_KEY_LENGTH { 
+        panic!("Can't convert {} bytes to {} bytes without loss of data!", data.len(), PUBLIC_KEY_LENGTH); 
+    }
+
+    let mut result = [0; PUBLIC_KEY_LENGTH];
+
+    for i in 0..cmp::min(result.len(), data.len()) {
+        result[i] = data[i];
+    }
+    result
+}
+
+pub fn sk_bytes(data: &[u8]) -> [u8; SECRET_KEY_LENGTH] {
+    if data.len() > SECRET_KEY_LENGTH { 
+        panic!("Can't convert {} bytes to {} bytes without loss of data!", data.len(), SECRET_KEY_LENGTH); 
+    }
+
+    let mut result = [0; SECRET_KEY_LENGTH];
+
+    for i in 0..cmp::min(result.len(), data.len()) {
+        result[i] = data[i];
+    }
+    result
+}
+
 pub fn random_int_256() -> [u8; 32] {
 
     let mut result = [0u8; 32];

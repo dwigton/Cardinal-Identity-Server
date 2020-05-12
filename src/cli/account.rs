@@ -88,7 +88,7 @@ pub fn run(matches: &ArgMatches) {
 
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
-            None => get_input("NewAccountname: "),
+            None => get_input("New account name: "),
         };
 
         let password = match matches.value_of("password") {
@@ -104,7 +104,7 @@ pub fn run(matches: &ArgMatches) {
         let mut account = Account::new(&username, &password, &export_key, false);
 
         match account.save(&connection) {
-            Ok(_) => println!("NewAccount \"{}\" created successfully.", username),
+            Ok(_) => println!("New account \"{}\" created successfully.", username),
             Err(e) => eprintln!("Could not save new account. Error \"{}\"", e),
         }
     }
@@ -114,7 +114,7 @@ pub fn run(matches: &ArgMatches) {
 
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
-            None => get_input("NewAccountname: "),
+            None => get_input("Account name: "),
         };
 
         let password = match matches.value_of("password") {
@@ -136,10 +136,10 @@ pub fn run(matches: &ArgMatches) {
 
                 match unlocked_account.change_password(&new_password, &connection) {
                     Ok(_) => println!("Password successfully changed for account {}.", &username),
-                    Err(e) => println!("Could not change password. Error \"{}\"", e),
+                    Err(e) => eprintln!("Could not change password. Error \"{}\"", e),
                 }
             }
-            Err(_) => println!("Could not find account {}.", &username), 
+            Err(_) => eprintln!("Could not find account {}.", &username), 
         }
     }
 
@@ -147,7 +147,7 @@ pub fn run(matches: &ArgMatches) {
     if let Some(matches) = matches.subcommand_matches("delete") {
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
-            None => get_input("NewAccountname: "),
+            None => get_input("Account name: "),
         };
 
         let password = match matches.value_of("password") {
@@ -164,11 +164,11 @@ pub fn run(matches: &ArgMatches) {
                     // seems like the password should have to be verified
                     // or have an admin account to delete.
                     match account.delete(&connection) {
-                        Ok(_) => println!("NewAccount {} deleted", &username),
-                        Err(e) => println!("Could not delete {}. Error \"{}\"", &username, e),
+                        Ok(_) => println!("Account {} deleted", &username),
+                        Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &username, e),
                     }
                 }
-                Err(_) => println!("Could not find account {}.", &username), 
+                Err(_) => eprintln!("Could not find account {}.", &username), 
             }
         }
     }

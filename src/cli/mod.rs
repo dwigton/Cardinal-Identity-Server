@@ -6,7 +6,7 @@ pub mod account;
 //pub mod import;
 //pub mod scope;
 //pub mod sign;
-//pub mod client;
+pub mod client;
 
 use std::io::{stdin, stdout, Write};
 

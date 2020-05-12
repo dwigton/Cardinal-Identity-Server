@@ -3,11 +3,12 @@ use database::MyConnection;
 use diesel::prelude::*;
 use diesel::{update, insert_into, result, delete};
 use encryption::signing_key::SigningKey;
-use encryption::{hash_password, check_password, random_int_256, hash_salted_password, to_256};
+use encryption::{hash_password, check_password, random_int_256, hash_salted_password, pk_bytes, secure_hash};
 use error::{CommonResult, CommonError};
 use base64::{encode, decode};
 use encryption::Sha512Trunc256;
 use model::application::PortableApplication;
+use clear_on_drop::clear::Clear;
 
 pub struct PortableAccount {
     pub public_key: String,
@@ -30,7 +31,7 @@ pub struct NewAccount {
     pub is_admin: bool,
 }
 
-#[derive(Queryable, Identifiable, AsChangeset)]
+#[derive(PartialEq, Debug, Queryable, Identifiable, AsChangeset)]
 #[table_name = "account"]
 pub struct LockedAccount {
     pub id: i32,
@@ -43,6 +44,7 @@ pub struct LockedAccount {
     pub is_admin: bool,
 }
 
+#[derive(Debug)]
 pub struct UnlockedAccount {
     pub id: i32,
     pub name: String,
@@ -88,7 +90,7 @@ impl NewAccount {
         let encrypted_private_key = signing_key.encrypted_private_key(&master_key);
         let password_hash         = hash_password(password);
         let export_key_hash       = hash_password(export_key);
-        let public_key            = signing_key.public_key();
+        let public_key            = signing_key.public_key().to_vec();
 
         NewAccount {
             name: name.to_owned(),
@@ -99,6 +101,31 @@ impl NewAccount {
             master_key_salt,
             is_admin,
         }
+    }
+
+    pub fn from_portable (
+        name: &str, 
+        password: &str, 
+        export_key: &str, 
+        import_passphrase: &str, 
+        import: &PortableAccount) -> CommonResult<NewAccount> {
+
+        let encryption_key = hash_salted_password(import_passphrase, &decode(&import.private_key_salt)?);
+
+        let signing_key = SigningKey::from_encrypted(
+            &encryption_key, 
+            &pk_bytes(&decode(&import.public_key)?), 
+            &decode(&import.encrypted_private_key)?
+            )?;
+
+        Ok( 
+            NewAccount::with_key(
+                name, 
+                password, 
+                export_key, 
+                signing_key, 
+                false
+        ))
     }
 
     pub fn save (&self, connection: &MyConnection) -> CommonResult<LockedAccount> {
@@ -119,7 +146,7 @@ impl LockedAccount {
         let signing_key = 
             SigningKey::from_encrypted(
                 &master_key, 
-                &to_256(&self.public_key),
+                &pk_bytes(&self.public_key),
                 &self.encrypted_private_key
                 )?;
     
@@ -185,24 +212,6 @@ impl UnlockedAccount {
         })
     }
 
-    pub fn from_portable (
-        name: &str, 
-        password: &str, 
-        export_key: &str, 
-        import_passphrase: &str, 
-        import: &PortableAccount) -> CommonResult<UnlockedAccount> {
-
-        let encryption_key = hash_salted_password(import_passphrase, &decode(&import.private_key_salt)?);
-
-        let signing_key = SigningKey::from_encrypted(&encryption_key, &decode(&import.public_key)?, &decode(&import.encrypted_key)?);
-        let new_account = NewAccount::with_key(name, password, export_key, signing_key, false)?;
-
-        let locked_account = new_account.save()?;
-
-        let unlocked_account = locked_account.to_unlocked(password)?;
-
-        Ok(unlocked_account)
-    }
 
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
@@ -210,37 +219,29 @@ impl UnlockedAccount {
     }
 
     pub fn generate_key(&self, salt: &[u8]) -> [u8; 32] {
-        
-        let mut hasher = Sha512Trunc256::new();
-        let mut data = Vec::new();
-        
-        data.extend_from_slice(self.master_key);
-        data.extend_from_slice(self.salt);
-        hasher.input(data);
-
-        hasher.result().into()
+        secure_hash(&[&self.master_key, salt])
     }
 
-    pub fn change_password(&mut self, new_password: &str, connection: &MyConnection) -> CommonResult<()> {
+    pub fn change_password(mut self, new_password: &str, connection: &MyConnection) -> CommonResult<()> {
         // first all associated records need to be unlocked and stored.
         
-        self.master_key_salt      = random_int_256();
+        self.master_key_salt      = random_int_256().to_vec();
         let master_key            = hash_salted_password(new_password, &self.master_key_salt);
-        let encrypted_private_key = self.signing_key.encrypted_private_key(&master_key);
+        self.encrypted_private_key = self.signing_key.encrypted_private_key(&master_key);
         self.password_hash        = hash_password(&new_password);
 
-        self.save()
+        self.save(connection)
 
         // all associated records need to be re-locked with the new master_key.
     }
 
-    pub fn save(&self, connection: &MyConnection) -> CommonResult<()> {
+    pub fn save(self, connection: &MyConnection) -> CommonResult<()> {
         let locked: LockedAccount = self.into();
         locked.save(connection)
     }
 
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
-        Account::delete_id(self.id, connection)
+        Account::delete_id(&self.id, connection)
     }
 }
 
@@ -248,4 +249,93 @@ impl Drop for UnlockedAccount {
     fn drop(&mut self) {
         self.master_key.clear();
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use database::establish_connection;
+
+    #[test]
+    fn create_account() {
+        let connection = establish_connection().unwrap();
+        let mut account = Account::new(
+            "Test01",
+            "password",
+            "passphrase",
+            false
+            );
+
+        let locked = account.save(&connection).expect("could not save");
+
+        let mut loaded = Account::with_name("Test01", &connection).expect("could not load from database");
+
+        assert_eq!(locked, loaded);
+
+        match loaded.delete(&connection) {
+            Ok(_) => (),
+            Err(_) => panic!(),
+        }
+    }
+
+    #[test]
+    fn unlock_account() {
+        let connection = establish_connection().unwrap();
+        let mut account = Account::new(
+            "Test02",
+            "password",
+            "passphrase",
+            false
+            );
+
+        let locked = account.save(&connection).expect("could not save");
+        let unlocked = locked.to_unlocked("password").expect("Could not unlock");
+
+        let mut locked_loaded = Account::with_name("Test02", &connection).expect("could not load from database");
+        let unlocked_loaded = locked_loaded.to_unlocked("password").expect("Could not unlock");
+
+        let message = b"Please sign and return";
+
+        let sig1 = unlocked.sign(message);
+        let sig2 = unlocked_loaded.sign(message);
+
+        assert_eq!(sig1, sig2);
+
+        match unlocked.delete(&connection) {
+            Ok(_) => (),
+            Err(_) => panic!(),
+        }
+    }
+
+    #[test]
+    fn change_password() {
+        let connection = establish_connection().unwrap();
+        let mut account = Account::new(
+            "Test03",
+            "password",
+            "passphrase",
+            false
+            );
+
+        let locked = account.save(&connection).expect("could not save");
+        let unlocked = locked.to_unlocked("password").expect("Could not unlock");
+
+        let message = b"Please sign and return";
+        let sig1 = unlocked.sign(message);
+
+        unlocked.change_password("new_password", &connection).expect("Could not change password");
+
+        let mut locked_loaded = Account::with_name("Test03", &connection).expect("could not load from database");
+        let unlocked_loaded = locked_loaded.to_unlocked("new_password").expect("Could not unlock");
+
+        let sig2 = unlocked_loaded.sign(message);
+
+        assert_eq!(sig1, sig2);
+
+        match unlocked_loaded.delete(&connection) {
+            Ok(_) => (),
+            Err(_) => panic!(),
+        }
+    }
+
 }

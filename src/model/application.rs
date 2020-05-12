@@ -32,19 +32,22 @@ pub struct Application {
 }
 
 impl NewApplication {
-    pub fn new (account: &UnlockedAccount, name: &str, server_url: &str) -> CommonResult<NewApplication> {
+    pub fn new (account: &UnlockedAccount, name: &str, server_url: &str) -> NewApplication {
 
-        Ok(NewApplication {
-            name,
-            server_url,
+        NewApplication {
+            name: name.to_string(),
+            server_url: server_url.to_string(),
             account_id: account.id,
-        })
+        }
     }
 
+    pub fn from_portable (account: &UnlockedAccount, import: &PortableApplication) -> NewApplication {
+        NewApplication::new(account, &import.name, &import.server_url)
+    }
 
     pub fn save (&self, connection: &MyConnection) -> CommonResult<Application> {
 
-        diesel::insert_into(account::table).values(self).get_result(connection)
+        Ok(diesel::insert_into(application::table).values(self).get_result(connection)?)
 
     }
 }
@@ -53,13 +56,9 @@ impl Application {
     pub fn to_portable(&self, export_key: &str, connection: &MyConnection) -> PortableApplication {
 
         PortableApplication {
-            name: self.name,
-            server_url: self.server_url,
+            name: self.name.clone(),
+            server_url: self.server_url.clone(),
         }
     }
 
-    pub fn from_portable (account: &UnlockedAccount, import: &PortableApplication) -> CommonResult<Application> {
-        let new_application = NewApplication::new(account, import.name, import.server_url);
-        new_application.save()
-    }
 }

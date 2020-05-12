@@ -1,7 +1,7 @@
 use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
-use model::user::User;
+use model::account::Account;
 use model::client::ClientApp;
 use model::write_grant_scope::WriteGrantScope;
 use model::read_grant_scope::ReadGrantScope;
@@ -11,17 +11,17 @@ pub fn init() -> App<'static, 'static> {
         .about("create and revoke client authorizations")
         .subcommand(SubCommand::with_name("add")
             .about("Add a new client application authorization.")
-            .arg(Arg::with_name("username")
-               .short("u")
-               .long("username")
-               .help("The user for which to create a new client application authorization.")
+            .arg(Arg::with_name("account")
+               .short("a")
+               .long("account")
+               .help("The account for which to create a new client application authorization.")
                .value_name("USERNAME")
                .takes_value(true)
             )
             .arg(Arg::with_name("password")
                .short("p")
                .long("password")
-               .help("The user's password.")
+               .help("The account's password.")
                .value_name("PASSWORD")
                .takes_value(true)
             )
@@ -52,9 +52,9 @@ pub fn init() -> App<'static, 'static> {
         .subcommand(SubCommand::with_name("list").about("Show all client authorizations"))
         .subcommand(SubCommand::with_name("revoke")
             .about("Revoke client application authorization.")
-            .arg(Arg::with_name("username")
-                 .short("u")
-                 .long("username")
+            .arg(Arg::with_name("account")
+                 .short("a")
+                 .long("account")
                  .help("The owner of the client authoriztion")
                  .value_name("USERNAME")
                  .takes_value(true)
@@ -62,7 +62,7 @@ pub fn init() -> App<'static, 'static> {
             .arg(Arg::with_name("password")
                  .short("p")
                  .long("password")
-                 .help("The user's password.")
+                 .help("The account password.")
                  .value_name("PASSWORD")
                  .takes_value(true)
             )
@@ -115,14 +115,14 @@ pub fn run(matches: &ArgMatches) {
     // Returns client Id and client secret.
     if let Some(matches) = matches.subcommand_matches("add") {
 
-        let username = match matches.value_of("username") {
+        let account = match matches.value_of("account") {
             Some(u) => u.to_owned(),
-            None => get_input("Username: "),
+            None => get_input("Accountname: "),
         };
 
         let password = match matches.value_of("password") {
             Some(p) => p.to_owned(),
-            None => get_password("User password: "),
+            None => get_password("Account password: "),
         };
 
         let client_name = match matches.value_of("name") {
@@ -141,36 +141,36 @@ pub fn run(matches: &ArgMatches) {
             None => vec!(),
         };
 
-        // load user
-        let user = User::load(&username, &password, &connection).expect("Username, password not recognized");
+        // load account
+        let account = Account::load(&account, &password, &connection).expect("Accountname, password not recognized");
 
         // Create new client application
         // Should be impossible to trigger a panic on the unwrap.
         let mut client = ClientApp::try_load(
-            user.account.as_ref().unwrap().id, 
+            account.account.as_ref().unwrap().id, 
             &client_name, 
             &connection)
             .expect("Could not load or create client.");
 
         // Load or create all requested scopes
         let write_scopes = WriteGrantScope::try_load_all(
-            &user, 
+            &account, 
             &write_scope_codes, 
             &connection
             ).expect("Could not load or create requested scopes.");
 
         let read_scopes = ReadGrantScope::try_load_all(
-            &user, 
+            &account, 
             &read_scope_codes, 
             &connection
             ).expect("Could not load or create requested scopes.");
 
         for write_scope in write_scopes {
-            write_scope.authorize(&client, &user, &connection).expect("Could not authorize write scope for client");
+            write_scope.authorize(&client, &account, &connection).expect("Could not authorize write scope for client");
         }
 
         for read_scope in read_scopes {
-            read_scope.authorize(&client, &user, &connection).expect("Could not authorize read scope for client");
+            read_scope.authorize(&client, &account, &connection).expect("Could not authorize read scope for client");
         }
 
         println!("{}", client.to_string());
@@ -178,9 +178,9 @@ pub fn run(matches: &ArgMatches) {
 
     // Revoke authorization
     if let Some(matches) = matches.subcommand_matches("revoke") {
-        let username = match matches.value_of("username") {
+        let account = match matches.value_of("account") {
             Some(u) => u.to_owned(),
-            None => get_input("Username: "),
+            None => get_input("Accountname: "),
         };
 
         let password = match matches.value_of("password") {
@@ -197,8 +197,8 @@ pub fn run(matches: &ArgMatches) {
         if matches.is_present("force") || 
             get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &client_name)) == "y" 
             {
-                // load user
-                let user = User::load(&username, &password, &connection).expect("Username, password not recognized");
+                // load account
+                let account = Account::load(&account, &password, &connection).expect("Account, password not recognized");
 
                 // multiple scopes allowed. 
                 let write_scope_codes = match matches.values_of("write_scope") {
@@ -218,19 +218,19 @@ pub fn run(matches: &ArgMatches) {
                 // Load client application
                 // Should be impossible to trigger a panic on the unwrap.
                 let client = ClientApp::load_by_name(
-                    user.account.as_ref().unwrap().id, 
+                    account.account.as_ref().unwrap().id, 
                     &client_name, 
                     &connection)
                     .expect("Client does not exist.");
 
                 // Load all requested scopes
                 let write_scopes = WriteGrantScope::load_all(
-                    &user, 
+                    &account, 
                     &connection
                     ).expect("Could not load write scopes.");
 
                 let read_scopes = ReadGrantScope::load_all(
-                    &user, 
+                    &account, 
                     &connection
                     ).expect("Could not load read scopes.");
 
