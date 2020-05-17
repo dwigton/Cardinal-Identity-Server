@@ -60,7 +60,7 @@ pub fn init() -> App<'static, 'static> {
             .arg(Arg::with_name("username")
                  .short("u")
                  .long("username")
-                 .help("The account name for which to change the password.")
+                 .help("The account name to delete.")
                  .value_name("USERNAME")
                  .takes_value(true)
             )
@@ -127,19 +127,14 @@ pub fn run(matches: &ArgMatches) {
             None => get_new_password("New account password: ", "Reenter new password: "),
         };
 
-        match Account::with_name(&username, &connection) {
-            Ok(locked_account) => {
-
-                let mut unlocked_account = locked_account
-                    .to_unlocked(&password)
-                    .expect("username and password not recognized.");
-
+        match Account::load_unlocked(&username, &password, &connection) {
+            Ok(unlocked_account) => {
                 match unlocked_account.change_password(&new_password, &connection) {
                     Ok(_) => println!("Password successfully changed for account {}.", &username),
                     Err(e) => eprintln!("Could not change password. Error \"{}\"", e),
                 }
             }
-            Err(_) => eprintln!("Could not find account {}.", &username), 
+            Err(_) => eprintln!("username and password not recognized."), 
         }
     }
 
@@ -159,10 +154,8 @@ pub fn run(matches: &ArgMatches) {
             get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &username)) == "y" 
             {
 
-            match Account::with_name(&username, &connection) {
+            match Account::load_unlocked(&username, &password, &connection) {
                 Ok(account) => {
-                    // seems like the password should have to be verified
-                    // or have an admin account to delete.
                     match account.delete(&connection) {
                         Ok(_) => println!("Account {} deleted", &username),
                         Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &username, e),

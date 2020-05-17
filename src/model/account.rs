@@ -66,9 +66,14 @@ impl Account {
 
     }
 
-    pub fn with_name (name: &str, connection: &MyConnection) -> CommonResult<LockedAccount> {
+    pub fn load_locked (name: &str, connection: &MyConnection) -> CommonResult<LockedAccount> {
         Ok(account::table.filter( account::name.eq(name)).first(connection)?)
     }
+
+    pub fn load_unlocked (name: &str, password: &str, connection: &MyConnection) -> CommonResult<UnlockedAccount> {
+        Account::load_locked(name, connection)?.to_unlocked(password)
+    }
+
 
     pub fn delete_id (id: &i32, connection: &MyConnection) -> CommonResult<()> {
         diesel::delete(account::table.filter(account::id.eq(id))).execute(connection)?;
@@ -167,10 +172,6 @@ impl LockedAccount {
     pub fn save(&self, connection: &MyConnection) -> CommonResult<()> {
         update(account::table.filter(account::id.eq(&self.id))).set(self).get_result::<LockedAccount>(connection)?;
         Ok(())
-    }
-
-    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
-        Account::delete_id(&self.id, connection)
     }
 }
 

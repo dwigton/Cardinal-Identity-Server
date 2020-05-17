@@ -14,7 +14,8 @@ table! {
 table! {
     application (id) {
         id -> Int4,
-        name -> Varchar,
+        code -> Varchar,
+        description -> Varchar,
         account_id -> Int4,
         server_url -> Varchar,
     }

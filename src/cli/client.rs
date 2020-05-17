@@ -2,9 +2,7 @@ use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
 use model::account::Account;
-use model::client::ClientApp;
-use model::write_grant_scope::WriteGrantScope;
-use model::read_grant_scope::ReadGrantScope;
+use model::client::{Client};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("client")
@@ -125,6 +123,11 @@ pub fn run(matches: &ArgMatches) {
             None => get_password("Account password: "),
         };
 
+        let application_name = match matches.value_of("application") {
+            Some(a) => a.to_owned(),
+            None => get_input("Application name: "),
+        };
+
         let client_name = match matches.value_of("name") {
             Some(p) => p.to_owned(),
             None => get_input("New client name: "),
@@ -142,12 +145,12 @@ pub fn run(matches: &ArgMatches) {
         };
 
         // load account
-        let account = Account::load(&account, &password, &connection).expect("Accountname, password not recognized");
+        let account = Account::load(&account, &connection).expect("Account, password not recognized");
+        let unlocked_account = account.to_unlocked(&password).expect("Account, password not recognized");
 
         // Create new client application
-        // Should be impossible to trigger a panic on the unwrap.
-        let mut client = ClientApp::try_load(
-            account.account.as_ref().unwrap().id, 
+        let mut client = Client::load_or_create(
+            &account.id, 
             &client_name, 
             &connection)
             .expect("Could not load or create client.");

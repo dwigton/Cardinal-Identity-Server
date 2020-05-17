@@ -10,6 +10,7 @@ extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 
 extern crate base64;
+extern crate clear_on_drop;
 
 mod database;
 mod encryption;
@@ -26,6 +27,7 @@ fn main() {
         .author("Daniel W. <daniel@stonecottageweb.com>")
         .about("Stores keys and authenticates messages on behalf of the user.")
         .subcommand(cli::account::init())
+        .subcommand(cli::application::init())
         //.subcommand(cli::client::init())
         //.subcommand(cli::export::init())
         //.subcommand(cli::import::init())
@@ -62,6 +64,10 @@ fn main() {
 
     if let Some(matches) = matches.subcommand_matches("account") {
         cli::account::run(matches);
+    }
+
+    if let Some(matches) = matches.subcommand_matches("application") {
+        cli::application::run(matches);
     }
 
     /*
