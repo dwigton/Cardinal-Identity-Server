@@ -10,11 +10,12 @@ CREATE TABLE account(
 );
 
 CREATE TABLE application(
-	id           SERIAL               PRIMARY KEY NOT NULL,
-	code         VARCHAR (256)                    NOT NULL,
-	description  VARCHAR (256)                    NOT NULL,
-    account_id   INT REFERENCES account(id)       NOT NULL,
-	server_url   VARCHAR (512)                    NOT NULL
+	id                     SERIAL          PRIMARY KEY NOT NULL,
+    account_id             INT REFERENCES account(id)  NOT NULL,
+	code                   VARCHAR (256)               NOT NULL,
+	description            VARCHAR (256)               NOT NULL,
+	server_url             VARCHAR (512)               NOT NULL,
+    signature              BYTEA                       NOT NULL
 );
 
 CREATE TABLE read_grant_scope(

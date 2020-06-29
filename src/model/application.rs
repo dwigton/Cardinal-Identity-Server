@@ -1,10 +1,9 @@
-use database::schema::{application, account};
+use database::schema::{application};
 use database::MyConnection;
 use diesel::prelude::*;
 use diesel::{update, insert_into, result, delete};
-use error::{CommonResult, CommonError};
-use base64::{encode, decode};
-use model::account::{UnlockedAccount, Account};
+use error::CommonResult;
+use model::account::UnlockedAccount;
 
 pub struct PortableApplication {
     pub code: String,
@@ -18,20 +17,21 @@ pub struct PortableApplication {
 #[derive(Insertable)]
 #[table_name = "application"]
 pub struct NewApplication {
+    pub account_id: i32,
     pub code: String,
     pub description: String,
-    pub account_id: i32,
     pub server_url: String,
+    pub signature: Vec<u8>,
 }
 
 #[derive(Queryable)]
-#[table_name = "application"]
 pub struct Application {
     pub id: i32,
+    pub account_id: i32,
     pub code: String,
     pub description: String,
-    pub account_id: i32,
     pub server_url: String,
+    pub signature: Vec<u8>,
 }
 
 impl NewApplication {
@@ -49,6 +49,7 @@ impl Application {
             description: description.to_string(),
             account_id: account.id,
             server_url: server_url.to_string(),
+            signature: Vec::new(),
         }
     }
 

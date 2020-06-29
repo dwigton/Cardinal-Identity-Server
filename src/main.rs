@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, custom_attribute, decl_macro, plugin)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate chrono;
 extern crate clap;

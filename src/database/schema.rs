@@ -14,10 +14,11 @@ table! {
 table! {
     application (id) {
         id -> Int4,
+        account_id -> Int4,
         code -> Varchar,
         description -> Varchar,
-        account_id -> Int4,
         server_url -> Varchar,
+        signature -> Bytea,
     }
 }
 
