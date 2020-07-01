@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn create_account() {
         let connection = establish_connection().unwrap();
-        let mut account = Account::new(
+        let account = Account::new(
             "Test01",
             "password",
             "passphrase",
@@ -269,11 +269,13 @@ mod tests {
 
         let locked = account.save(&connection).expect("could not save");
 
-        let mut loaded = Account::with_name("Test01", &connection).expect("could not load from database");
+        let loaded = Account::load_locked("Test01", &connection).expect("could not load from database");
 
         assert_eq!(locked, loaded);
 
-        match loaded.delete(&connection) {
+        let unlocked = loaded.to_unlocked("password").expect("Could no unlock for deletion.");
+
+        match unlocked.delete(&connection) {
             Ok(_) => (),
             Err(_) => panic!(),
         }
@@ -282,7 +284,7 @@ mod tests {
     #[test]
     fn unlock_account() {
         let connection = establish_connection().unwrap();
-        let mut account = Account::new(
+        let account = Account::new(
             "Test02",
             "password",
             "passphrase",
@@ -292,8 +294,7 @@ mod tests {
         let locked = account.save(&connection).expect("could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
 
-        let mut locked_loaded = Account::with_name("Test02", &connection).expect("could not load from database");
-        let unlocked_loaded = locked_loaded.to_unlocked("password").expect("Could not unlock");
+        let unlocked_loaded = Account::load_unlocked("Test02", "password", &connection).expect("could not load from database");
 
         let message = b"Please sign and return";
 
@@ -311,7 +312,7 @@ mod tests {
     #[test]
     fn change_password() {
         let connection = establish_connection().unwrap();
-        let mut account = Account::new(
+        let account = Account::new(
             "Test03",
             "password",
             "passphrase",
@@ -326,7 +327,7 @@ mod tests {
 
         unlocked.change_password("new_password", &connection).expect("Could not change password");
 
-        let mut locked_loaded = Account::with_name("Test03", &connection).expect("could not load from database");
+        let locked_loaded = Account::load_locked("Test03", &connection).expect("could not load from database");
         let unlocked_loaded = locked_loaded.to_unlocked("new_password").expect("Could not unlock");
 
         let sig2 = unlocked_loaded.sign(message);
