@@ -1,7 +1,7 @@
 use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password, get_new_password};
-use model::account::{Account, LockedAccount, UnlockedAccount};
+use model::account::Account;
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("account")

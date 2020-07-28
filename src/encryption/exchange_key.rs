@@ -3,8 +3,10 @@ use encryption::x25519_dalek::EphemeralSecret;
 use encryption::x25519_dalek::PublicKey;
 use encryption::rand;
 use encryption::SECRET_KEY_LENGTH;
-use encryption::{encrypt, decrypt, to_256, Sha512Trunc256, Digest};
+use encryption::{Sha512Trunc256, Digest};
+use encryption::byte_encryption::{encrypt_32, decrypt_32};
 use error::CommonResult;
+use std::convert::TryInto;
 
 // This acts as a constant interface while the backing library is
 // in flux. should eventually use the library type.
@@ -32,16 +34,16 @@ impl ExchangeKey {
         *PublicKey::from(&self.key).as_bytes()
     }
 
-    pub fn encrypted_private_key(&self, encryption_key: &[u8]) -> Vec<u8> {
-        encrypt(&self.key.to_bytes(), &encryption_key)
+    pub fn encrypted_private_key(&self, encryption_key: &[u8; 32]) -> [u8; 64] {
+        encrypt_32(&self.key.to_bytes().try_into().unwrap(), encryption_key)
     }
 
     pub fn private_key(&self) -> [u8; 32] {
         self.key.to_bytes()
     }
 
-    pub fn from_encrypted(encryption_key: &[u8], encrypted_key: &[u8]) -> CommonResult<ExchangeKey>{ 
-        let decrypted_key = to_256(&decrypt(&encrypted_key, &encryption_key)?);
+    pub fn from_encrypted(encryption_key: &[u8; 32], encrypted_key: &[u8; 64]) -> CommonResult<ExchangeKey>{ 
+        let decrypted_key: [u8; SECRET_KEY_LENGTH] = decrypt_32(&encrypted_key, &encryption_key)?;
 
         Ok(ExchangeKey::from_key(decrypted_key))
     }
@@ -73,6 +75,6 @@ impl EphemeralKey {
 
         hasher.input(shared_key.as_bytes());
 
-        to_256(&hasher.result())
+        hasher.result().try_into().unwrap()
     }
 }

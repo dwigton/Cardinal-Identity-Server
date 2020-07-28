@@ -1,4 +1,4 @@
-extern crate ed25519_dalek;
+extern crate ed25519_compact;
 extern crate x25519_dalek;
 extern crate rand;
 extern crate sha2;
@@ -7,19 +7,25 @@ pub extern crate miscreant;
 
 pub mod signing_key;
 pub mod exchange_key;
+pub mod byte_encryption;
 
-pub use encryption::ed25519_dalek::PUBLIC_KEY_LENGTH as PUBLIC_KEY_LENGTH;
-pub use encryption::ed25519_dalek::SECRET_KEY_LENGTH as SECRET_KEY_LENGTH;
+//pub use encryption::ed25519_compact::PublicKey::BYTES as PUBLIC_KEY_LENGTH;
+// Maybe needt to set to 32 directly?
+//pub use encryption::ed25519_compact::PrivateKey::BYTES as SECRET_KEY_LENGTH;
+
 pub use encryption::x25519_dalek::PublicKey;
 pub use encryption::argon2rs::Argon2;
 pub use encryption::argon2rs::Variant::Argon2i;
 pub use encryption::rand::Rng;
 pub use encryption::sha2::{Sha512Trunc256, Digest};
-use std::io::Result;
 use std::cmp;
 use encryption::miscreant::siv::Aes128PmacSiv;
 use base64::{encode, decode};
 use error::CommonResult;
+use std::convert::TryInto;
+
+pub const PUBLIC_KEY_LENGTH: usize = 32;
+pub const SECRET_KEY_LENGTH: usize = 32;
 
 pub fn hash_password(password: &str) -> String {
 
@@ -46,12 +52,12 @@ pub fn hash_salted_password(password: &str, salt: &[u8]) -> [u8; 32] {
 
 pub fn check_password(password: &str, hashed_password: &str) -> bool {
     let merged: [u8; 64] = match decode(hashed_password) {
-        Ok(v) if v.len() == 64 => to_512(&v),
+        Ok(v) if v.len() == 64 => *to_512(v.as_slice()),
         _ => return false,
     };
 
-    let salt: [u8;32] = to_256(&merged[0..32]);
-    let hash: [u8;32] = to_256(&merged[32..64]);
+    let salt: [u8;32] = merged[0..32].try_into().unwrap();
+    let hash: [u8;32] = merged[32..64].try_into().unwrap();
 
     let new_hash = hash_salted_password(password, &salt); 
 
@@ -82,28 +88,6 @@ pub fn decrypt(data: &[u8], key: &[u8]) -> CommonResult<Vec<u8>> {
     let additional_data: Vec<Vec<u8>> = Vec::new();
     let mut siv = Aes128PmacSiv::new(&key);
     Ok(siv.open(&additional_data, &data)?)
-}
-
-pub fn to_256(data: &[u8]) -> [u8; 32] {
-    if data.len() > 32 { 
-        panic!("Can't convert {} bytes to 32 bytes without loss of data!", data.len()); 
-    }
-
-    let mut result = [0; 32];
-
-    for i in 0..cmp::min(result.len(), data.len()) {
-        result[i] = data[i];
-    }
-    result
-}
-
-pub fn to_512(data: &[u8]) -> [u8; 64] {
-    let mut result = [0; 64];
-
-    for i in 0..cmp::min(result.len(), data.len()) {
-        result[i] = data[i];
-    }
-    result
 }
 
 pub fn secure_hash(data: &[&[u8]]) -> [u8; 32] {
@@ -154,6 +138,16 @@ pub fn random_int_256() -> [u8; 32] {
     rng.fill(&mut result);
 
     result
+}
+
+pub fn to_512(input: &[u8]) -> &[u8; 64] {
+    if input.len() == 64 {
+        let ptr = input.as_ptr() as *const [u8; 64];
+        // SAFETY: ok because we just checked that the length fits
+        unsafe { &*ptr }
+    } else {
+        panic!("Array length not 64 bytes");
+    }
 }
 
 #[cfg(test)]

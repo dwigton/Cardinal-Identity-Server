@@ -1,7 +1,6 @@
 use database::schema::{application};
 use database::MyConnection;
 use diesel::prelude::*;
-use diesel::{update, insert_into, result, delete};
 use error::CommonResult;
 use model::account::UnlockedAccount;
 

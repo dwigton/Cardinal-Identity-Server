@@ -2,12 +2,12 @@
 
 extern crate chrono;
 extern crate clap;
-#[macro_use] extern crate rocket;
+//#[macro_use] extern crate rocket;
 extern crate serde;
 extern crate serde_json;
-#[macro_use] extern crate rocket_contrib;
+//#[macro_use] extern crate rocket_contrib;
 #[macro_use] extern crate diesel;
-#[macro_use] extern crate serde_derive;
+//#[macro_use] extern crate serde_derive;
 
 extern crate base64;
 extern crate clear_on_drop;
@@ -19,7 +19,7 @@ mod model;
 //mod web;
 mod error;
 
-use clap::{App, SubCommand};
+use clap::App;
 
 fn main() {
     let app = App::new("Identity Vault")

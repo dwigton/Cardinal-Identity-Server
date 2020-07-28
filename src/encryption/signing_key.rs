@@ -1,43 +1,34 @@
 use encryption::rand;
-use encryption::rand::rngs::ThreadRng;
-use encryption::ed25519_dalek::Keypair;
+use encryption::random_int_256;
+use encryption::ed25519_compact::{KeyPair, Seed, Noise};
 use encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
-use encryption::{encrypt, decrypt, to_256};
+use encryption::{encrypt, decrypt};
 use encryption::{sk_bytes};
 use error::CommonResult;
+use std::convert::TryInto;
 
-#[derive(Debug)]
+#[derive(Copy, Clone)]
 pub struct SigningKey {
-    key_pair: Keypair,
-}
-
-impl Clone for SigningKey {
-    
-    fn clone(&self) -> SigningKey {
-        // Should be impossible to generate an error since 
-        // to_bytes provides the correct byte length.
-        SigningKey {
-            key_pair: Keypair::from_bytes(&self.key_pair.to_bytes()).unwrap(),
-        }
-    }
+    seed: [u8; SECRET_KEY_LENGTH],
+    key_pair: KeyPair,
 }
 
 impl SigningKey {
     pub fn new() -> SigningKey {
         let mut rng = rand::thread_rng();
-        let pair = Keypair::generate::<ThreadRng>(&mut rng);
+        let seed = random_int_256();
+        let pair = KeyPair::from_seed(Seed::new(seed));
 
-        SigningKey { key_pair: pair }
+        SigningKey { 
+            seed,
+            key_pair: pair 
+        }
     }
 
     pub fn from_keys(public: &[u8; PUBLIC_KEY_LENGTH], private: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
-        let mut output = [0u8; PUBLIC_KEY_LENGTH + SECRET_KEY_LENGTH];
-
-        output[..SECRET_KEY_LENGTH].copy_from_slice(private);
-        output[SECRET_KEY_LENGTH..].copy_from_slice(public);
-
         SigningKey {
-            key_pair: Keypair::from_bytes(&output).expect("Could not create Keypair from bytes")
+            seed: private.to_owned(),
+            key_pair: KeyPair::from_seed(Seed::new(private.to_owned())),
         }
     }
 
@@ -49,15 +40,16 @@ impl SigningKey {
     }
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
-        self.key_pair.sign(data).to_bytes().to_vec()
+        self.key_pair.sk.sign(data, Some(Noise::default())).as_ref().to_vec()
     }
 
     pub fn public_key(&self) -> [u8; PUBLIC_KEY_LENGTH] {
-        self.key_pair.public.to_bytes()
+        let output: [u8; PUBLIC_KEY_LENGTH] = self.key_pair.pk.as_ref().try_into().unwrap();
+        output
     }
 
     pub fn encrypted_private_key(&self, encryption_key: &[u8]) -> Vec<u8> {
-        encrypt(&self.key_pair.secret.to_bytes(), &encryption_key)
+        encrypt(&self.seed, &encryption_key)
     }
 
 }

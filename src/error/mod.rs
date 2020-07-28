@@ -13,6 +13,7 @@ pub enum CommonError {
     LibraryError(Option<String>),
     Duplicate(Option<String>),
     RecordNotSaved(Option<String>),
+    FailedVerification(Option<String>),
 }
 
 pub type CommonResult<T> = Result<T, CommonError>;
@@ -27,6 +28,7 @@ impl fmt::Display for CommonError {
             Misconfiguration(ref error) => write!(f, "{:?}", error),
             Duplicate(ref error) => write!(f, "{:?}", error),
             RecordNotSaved(ref error) => write!(f, "{:?}", error),
+            FailedVerification(ref error) => write!(f, "{:?}", error),
         }
     }
 }

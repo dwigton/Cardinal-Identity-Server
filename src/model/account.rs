@@ -1,12 +1,11 @@
 use database::schema::account;
 use database::MyConnection;
 use diesel::prelude::*;
-use diesel::{update, insert_into, result, delete};
+use diesel::update;
 use encryption::signing_key::SigningKey;
 use encryption::{hash_password, check_password, random_int_256, hash_salted_password, pk_bytes, secure_hash};
 use error::{CommonResult, CommonError};
 use base64::{encode, decode};
-use encryption::Sha512Trunc256;
 use model::application::PortableApplication;
 use clear_on_drop::clear::Clear;
 
@@ -44,7 +43,7 @@ pub struct LockedAccount {
     pub is_admin: bool,
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct UnlockedAccount {
     pub id: i32,
     pub name: String,
