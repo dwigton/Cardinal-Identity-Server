@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use diesel::update;
 use encryption::signing_key::SigningKey;
 use encryption::{hash_password, check_password, random_int_256, hash_salted_password, pk_bytes, secure_hash};
+use encryption::{decode_64, decode_32, to_512};
 use error::{CommonResult, CommonError};
 use base64::{encode, decode};
 use model::application::PortableApplication;
@@ -91,7 +92,7 @@ impl NewAccount {
 
         let master_key_salt       = random_int_256().to_vec();
         let master_key            = hash_salted_password(password, &master_key_salt);
-        let encrypted_private_key = signing_key.encrypted_private_key(&master_key);
+        let encrypted_private_key = signing_key.encrypted_private_key(&master_key).to_vec();
         let password_hash         = hash_password(password);
         let export_key_hash       = hash_password(export_key);
         let public_key            = signing_key.public_key().to_vec();
@@ -118,8 +119,8 @@ impl NewAccount {
 
         let signing_key = SigningKey::from_encrypted(
             &encryption_key, 
-            &pk_bytes(&decode(&import.public_key)?), 
-            &decode(&import.encrypted_private_key)?
+            &decode_32(&import.public_key)?, 
+            &decode_64(&import.encrypted_private_key)?
             )?;
 
         Ok( 
@@ -151,7 +152,7 @@ impl LockedAccount {
             SigningKey::from_encrypted(
                 &master_key, 
                 &pk_bytes(&self.public_key),
-                &self.encrypted_private_key
+                &to_512(&self.encrypted_private_key)
                 )?;
     
         Ok( UnlockedAccount{
@@ -207,7 +208,7 @@ impl UnlockedAccount {
         PortableAccount {
             public_key: encode(&self.public_key),
             private_key_salt: encode(&private_key_salt),
-            encrypted_private_key: encode(&encrypted_private_key),
+            encrypted_private_key: encode(&encrypted_private_key.to_vec()),
             applications: applications,
         })
     }
@@ -216,6 +217,10 @@ impl UnlockedAccount {
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
         self.signing_key.sign(data)
+    }
+
+    pub fn verify(&self, data: &[u8], signature: &[u8]) -> bool {
+        self.signing_key.verify(data, signature)
     }
 
     pub fn generate_key(&self, salt: &[u8]) -> [u8; 32] {
@@ -227,7 +232,7 @@ impl UnlockedAccount {
         
         self.master_key_salt      = random_int_256().to_vec();
         let master_key            = hash_salted_password(new_password, &self.master_key_salt);
-        self.encrypted_private_key = self.signing_key.encrypted_private_key(&master_key);
+        self.encrypted_private_key = self.signing_key.encrypted_private_key(&master_key).to_vec();
         self.password_hash        = hash_password(&new_password);
 
         self.save(connection)
@@ -281,6 +286,33 @@ mod tests {
     }
 
     #[test]
+    fn sign_and_verify() {
+        let connection = establish_connection().unwrap();
+        let account = Account::new(
+            "Test04",
+            "password",
+            "passphrase",
+            false
+            );
+
+        let locked = account.save(&connection).expect("Could not save");
+        let unlocked = locked.to_unlocked("password").expect("Could not unlock");
+
+        let message = b"Please sign and return";
+
+        let sig = unlocked.sign(message);
+
+        let valid = unlocked.verify(message, &sig);
+
+        match unlocked.delete(&connection) {
+            Ok(_) => (),
+            Err(_) => panic!(),
+        }
+
+        assert!(valid);
+    }
+
+    #[test]
     fn unlock_account() {
         let connection = establish_connection().unwrap();
         let account = Account::new(
@@ -290,22 +322,31 @@ mod tests {
             false
             );
 
-        let locked = account.save(&connection).expect("could not save");
+        let locked = account.save(&connection).expect("Could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
 
         let unlocked_loaded = Account::load_unlocked("Test02", "password", &connection).expect("could not load from database");
 
         let message = b"Please sign and return";
 
-        let sig1 = unlocked.sign(message);
-        let sig2 = unlocked_loaded.sign(message);
+        let sig = unlocked.sign(message);
+        let valid = unlocked_loaded.verify(message, &sig);
 
-        assert_eq!(sig1, sig2);
+        assert_eq!(unlocked.id, unlocked_loaded.id);
+        assert_eq!(unlocked.name, unlocked_loaded.name);
+        assert_eq!(unlocked.password_hash, unlocked_loaded.password_hash);
+        assert_eq!(unlocked.export_key_hash, unlocked_loaded.export_key_hash);
+        assert_eq!(unlocked.public_key, unlocked_loaded.public_key);
+        assert_eq!(unlocked.encrypted_private_key, unlocked_loaded.encrypted_private_key);
+        assert_eq!(unlocked.master_key_salt, unlocked_loaded.master_key_salt);
+        assert_eq!(unlocked.is_admin, unlocked_loaded.is_admin);
 
         match unlocked.delete(&connection) {
             Ok(_) => (),
             Err(_) => panic!(),
         }
+
+        assert!(valid);
     }
 
     #[test]
@@ -322,21 +363,22 @@ mod tests {
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
 
         let message = b"Please sign and return";
-        let sig1 = unlocked.sign(message);
+        let sig = unlocked.sign(message);
 
         unlocked.change_password("new_password", &connection).expect("Could not change password");
 
         let locked_loaded = Account::load_locked("Test03", &connection).expect("could not load from database");
         let unlocked_loaded = locked_loaded.to_unlocked("new_password").expect("Could not unlock");
 
-        let sig2 = unlocked_loaded.sign(message);
-
-        assert_eq!(sig1, sig2);
+        let verified = unlocked_loaded.verify(message, &sig);
 
         match unlocked_loaded.delete(&connection) {
             Ok(_) => (),
             Err(_) => panic!(),
         }
+
+        assert!(verified);
+
     }
 
 }

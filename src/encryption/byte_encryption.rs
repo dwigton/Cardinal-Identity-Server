@@ -35,3 +35,21 @@ pub fn decrypt_32 (encrypted: &[u8; 64], key: &[u8; 32]) -> CommonResult<[u8; 32
         Ok(decrypted)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use encryption::random_int_256;
+
+
+    #[test]
+    fn encrypt32_decrypt32() {
+        let data = random_int_256();
+        let key = random_int_256();
+
+        let encrypted_data = encrypt_32(&data, &key);
+        let decrypted_data = decrypt_32(&encrypted_data, &key).unwrap();
+
+        assert_eq!(data, decrypted_data);
+    }
+}

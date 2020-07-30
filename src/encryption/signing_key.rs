@@ -1,9 +1,8 @@
 use encryption::rand;
 use encryption::random_int_256;
-use encryption::ed25519_compact::{KeyPair, Seed, Noise};
+use encryption::ed25519_compact::{KeyPair, Seed, Noise, Signature};
 use encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
-use encryption::{encrypt, decrypt};
-use encryption::{sk_bytes};
+use encryption::byte_encryption::{encrypt_32, decrypt_32};
 use error::CommonResult;
 use std::convert::TryInto;
 
@@ -33,8 +32,8 @@ impl SigningKey {
     }
 
     // Fails if IV authentication fails.
-    pub fn from_encrypted(encryption_key: &[u8], public: &[u8; PUBLIC_KEY_LENGTH], encrypted_key: &[u8]) -> CommonResult<SigningKey>{ 
-        let decrypted_key = sk_bytes(&decrypt(&encrypted_key, &encryption_key)?);
+    pub fn from_encrypted(encryption_key: &[u8; 32], public: &[u8; PUBLIC_KEY_LENGTH], encrypted_key: &[u8; 64]) -> CommonResult<SigningKey>{ 
+        let decrypted_key = &decrypt_32(encrypted_key, encryption_key)?;
 
         Ok(SigningKey::from_keys(public, &decrypted_key))
     }
@@ -43,13 +42,22 @@ impl SigningKey {
         self.key_pair.sk.sign(data, Some(Noise::default())).as_ref().to_vec()
     }
 
+    pub fn verify(&self, message: &[u8], signature: &[u8]) -> bool {
+        let lib_signature = match Signature::from_slice(signature) {
+            Ok(s) => s,
+            Err(_) => return false,
+        };
+
+        self.key_pair.pk.verify(message, &lib_signature).is_ok()
+    }
+
     pub fn public_key(&self) -> [u8; PUBLIC_KEY_LENGTH] {
         let output: [u8; PUBLIC_KEY_LENGTH] = self.key_pair.pk.as_ref().try_into().unwrap();
         output
     }
 
-    pub fn encrypted_private_key(&self, encryption_key: &[u8]) -> Vec<u8> {
-        encrypt(&self.seed, &encryption_key)
+    pub fn encrypted_private_key(&self, encryption_key: &[u8; 32]) -> [u8; 64] {
+        encrypt_32(&self.seed, &encryption_key)
     }
 
 }

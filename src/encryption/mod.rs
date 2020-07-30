@@ -130,6 +130,20 @@ pub fn sk_bytes(data: &[u8]) -> [u8; SECRET_KEY_LENGTH] {
     result
 }
 
+pub fn decode_64(input: &str) -> CommonResult<[u8; 64]> {
+    let vec_ouput = decode(input)?;
+    let mut output: [u8; 64] = [0u8; 64]; 
+    output.copy_from_slice(&vec_ouput);
+    Ok(output)
+}
+
+pub fn decode_32(input: &str) -> CommonResult<[u8; 32]> {
+    let vec_ouput = decode(input)?;
+    let mut output: [u8; 32] = [0u8; 32]; 
+    output.copy_from_slice(&vec_ouput);
+    Ok(output)
+}
+
 pub fn random_int_256() -> [u8; 32] {
 
     let mut result = [0u8; 32];
@@ -177,21 +191,4 @@ mod tests {
         assert_eq!(result, 0);
     }
 
-    #[test]
-    fn convert_to_256() {
-        let data = [0u8,  1u8,  2u8,  3u8,  4u8,  5u8,  6u8,  7u8,
-                    8u8,  9u8,  10u8, 11u8, 12u8, 13u8, 14u8, 15u8,
-                    16u8, 17u8, 18u8, 19u8, 20u8, 21u8, 22u8, 23u8,
-                    24u8, 25u8, 26u8, 27u8, 28u8, 29u8, 30u8, 32u8];
-
-        let converted_data = to_256(&data);
-
-        let mut result = 0;
-
-        for i in 0..data.len() {
-            result |= data[i] ^ converted_data[i];
-        }
-
-        assert_eq!(result, 0);
-    }
 }
