@@ -126,7 +126,7 @@ pub fn run(matches: &ArgMatches) {
 
     let connection = establish_connection().unwrap();
 
-    // Create new account.
+    // Create new application.
     if let Some(matches) = matches.subcommand_matches("add") {
 
         let username = match matches.value_of("username") {
@@ -157,7 +157,7 @@ pub fn run(matches: &ArgMatches) {
         let account = Account::load_unlocked(&username, &password, &connection)
             .expect("Account and password not recognized.");
 
-        let mut application = Application::new(&application_code, &description, &server_url, &account);
+        let application = Application::new(&application_code, &description, &server_url, &account);
 
         match application.save(&connection) {
             Ok(_) => println!("Application \"{}\" added successfully.", application_code),
@@ -165,7 +165,44 @@ pub fn run(matches: &ArgMatches) {
         }
     }
 
-    // Delete an application.
+    // Delete application.
+    if let Some(matches) = matches.subcommand_matches("delete") {
+
+        let username = match matches.value_of("username") {
+            Some(u) => u.to_owned(),
+            None => get_input("Account name: "),
+        };
+
+        let password = match matches.value_of("password") {
+            Some(p) => p.to_owned(),
+            None => get_password("Account password: "),
+        };
+
+        let application_code = match matches.value_of("code") {
+            Some(code) => code.to_owned(),
+            None => get_input("Application code: "),
+        };
+
+        if matches.is_present("force") || 
+            get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &application_code)) == "y" 
+            {
+
+            match Account::load_unlocked(&username, &password, &connection) {
+                Ok(account) => {
+                    match Application::load_by_code(&application_code, &account, &connection) {
+                        Ok(app) => match app.delete(&connection) {
+                            Ok(_) => println!("{} application deleted", &application_code),
+                            Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &application_code, e),
+                        },
+                        Err(e) => eprintln!("Could not locate record {}. Error \"{}\"", &application_code, e),
+                    };
+                },
+                Err(_) => eprintln!("Could not find account {}.", &username), 
+            }
+        }
+    }
+
+    // edit an application.
     if let Some(matches) = matches.subcommand_matches("scope") {
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
@@ -188,7 +225,7 @@ pub fn run(matches: &ArgMatches) {
 
             match Account::load_unlocked(&username, &password, &connection) {
                 Ok(account) => {
-                    let application = match Application::load_by_code(&application_code, &account, &connection) {
+                    match Application::load_by_code(&application_code, &account, &connection) {
                         Ok(app) => match app.delete(&connection) {
                             Ok(_) => println!("{} application deleted", &application_code),
                             Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &application_code, e),
@@ -201,39 +238,14 @@ pub fn run(matches: &ArgMatches) {
         }
     }
 
-    // list all accounts
+    // list all applications
     if let Some(_) = matches.subcommand_matches("list") {
 
         let records = Application::load_all(&connection).expect("Error loading all applications.");
 
         for i in 0..records.len() {
-            println!("{}: {}", records[i].code, records[i].description);
+            println!("{} - {}: {}", records[i].account_id, records[i].code, records[i].description);
         }
-    }
-
-    // Edit application grant scopes
-    if let Some(matches) = matches.subcommand_matches("delete") {
-        let username = match matches.value_of("username") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Password: "),
-        };
-
-        let application_code = match matches.value_of("code") {
-            Some(code) => code.to_owned(),
-            None => get_input("Application code: "),
-        };
-
-        let account = Account::load_unlocked(&username, &password, &connection)
-            .expect("Account and password not recognized.");
-
-        let application = Application::load_by_code(&application_code, &account, &connection)
-            .expect("Could not locate application");
-
     }
 
 }

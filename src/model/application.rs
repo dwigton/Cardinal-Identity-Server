@@ -78,6 +78,14 @@ impl Application {
         Ok(application::table.load(connection)?)
     }
 
+    pub fn load_all_for_account (account: &UnlockedAccount, connection: &MyConnection) -> CommonResult<Vec<Application>> {
+        Ok(
+            application::table
+            .filter( application::account_id.eq(account.id))
+            .get_results(connection)?
+          )
+    }
+
     pub fn delete (self, connection: &MyConnection) -> CommonResult<()> {
         diesel::delete(application::table.filter(application::id.eq(self.id))).execute(connection)?;
         Ok(())

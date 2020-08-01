@@ -101,7 +101,7 @@ pub fn run(matches: &ArgMatches) {
             None => get_new_password("New account export key: ", "Reenter export key: "),
         };
 
-        let mut account = Account::new(&username, &password, &export_key, false);
+        let account = Account::new(&username, &password, &export_key, false);
 
         match account.save(&connection) {
             Ok(_) => println!("New account \"{}\" created successfully.", username),

@@ -31,7 +31,7 @@ pub fn run() {
     let password = get_new_password("Administrator User Password: ", "Reenter Admin User Password: ");
     let export_key = encode(&random_int_256());
 
-    let mut account = Account::new(&admin_user_name, &password, &export_key, true);
+    let account = Account::new(&admin_user_name, &password, &export_key, true);
 
     let connection = establish_connection().unwrap();
 

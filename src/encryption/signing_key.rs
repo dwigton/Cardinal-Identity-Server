@@ -1,4 +1,3 @@
-use encryption::rand;
 use encryption::random_int_256;
 use encryption::ed25519_compact::{KeyPair, Seed, Noise, Signature};
 use encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
@@ -14,7 +13,6 @@ pub struct SigningKey {
 
 impl SigningKey {
     pub fn new() -> SigningKey {
-        let mut rng = rand::thread_rng();
         let seed = random_int_256();
         let pair = KeyPair::from_seed(Seed::new(seed));
 
@@ -24,7 +22,7 @@ impl SigningKey {
         }
     }
 
-    pub fn from_keys(public: &[u8; PUBLIC_KEY_LENGTH], private: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
+    pub fn from_keys(_public: &[u8; PUBLIC_KEY_LENGTH], private: &[u8; SECRET_KEY_LENGTH]) -> SigningKey {
         SigningKey {
             seed: private.to_owned(),
             key_pair: KeyPair::from_seed(Seed::new(private.to_owned())),
@@ -81,10 +79,11 @@ mod tests {
 
         let encrypted_key = ed_key.encrypted_private_key(&key);
 
-        let restored_key = SigningKey::from_encrypted(&key, &public_key, &encrypted_key);
+        let restored_key = SigningKey::from_encrypted(&key, &public_key, &encrypted_key).unwrap();
 
         // create a new key
-        //assert_eq!(restored_key.public_key(), public_key);
-        //assert_eq!(restored_key.encrypted_private_key(&key), encrypted_key);
+        let signature = ed_key.sign(b"Info to sign");
+        let verified = restored_key.verify(b"Info to sign", &signature);
+        assert!(verified);
     }
 }

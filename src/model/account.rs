@@ -9,6 +9,7 @@ use error::{CommonResult, CommonError};
 use base64::{encode, decode};
 use model::application::PortableApplication;
 use clear_on_drop::clear::Clear;
+use model::application::Application;
 
 pub struct PortableAccount {
     pub public_key: String,
@@ -246,6 +247,10 @@ impl UnlockedAccount {
     }
 
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        let applications = Application::load_all_for_account(&self, connection)?;
+        for app in applications {
+            app.delete(connection);
+        }
         Account::delete_id(&self.id, connection)
     }
 }
