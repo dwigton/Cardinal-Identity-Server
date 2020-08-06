@@ -5,11 +5,13 @@ use diesel::update;
 use encryption::signing_key::SigningKey;
 use encryption::{hash_password, check_password, random_int_256, hash_salted_password, pk_bytes, secure_hash};
 use encryption::{decode_64, decode_32, to_512};
+use encryption::signing_key::verify_signature;
 use error::{CommonResult, CommonError};
 use base64::{encode, decode};
 use model::application::PortableApplication;
 use clear_on_drop::clear::Clear;
 use model::application::Application;
+use model::Signable;
 
 pub struct PortableAccount {
     pub public_key: String,
@@ -170,6 +172,10 @@ impl LockedAccount {
             })
     }
 
+    pub fn verify_record(&self, record: &impl Signable) -> bool {
+        verify_signature(&self.public_key, &record.record_hash(), &record.signature())
+    }
+
     pub fn save(&self, connection: &MyConnection) -> CommonResult<()> {
         update(account::table.filter(account::id.eq(&self.id))).set(self).get_result::<LockedAccount>(connection)?;
         Ok(())
@@ -214,7 +220,13 @@ impl UnlockedAccount {
         })
     }
 
+    pub fn sign_record(&self, record: &impl Signable) -> Vec<u8> {
+        self.sign(&record.record_hash())
+    }
 
+    pub fn verify_record(&self, record: &impl Signable) -> bool {
+        self.verify(&record.record_hash(), &record.signature())
+    }
 
     pub fn sign(&self, data: &[u8]) -> Vec<u8> {
         self.signing_key.sign(data)

@@ -1,9 +1,23 @@
 use encryption::random_int_256;
-use encryption::ed25519_compact::{KeyPair, Seed, Noise, Signature};
+use encryption::ed25519_compact::{KeyPair, Seed, Noise, Signature, PublicKey};
 use encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 use encryption::byte_encryption::{encrypt_32, decrypt_32};
 use error::CommonResult;
 use std::convert::TryInto;
+
+pub fn verify_signature(public_key: &[u8], message: &[u8], signature: &[u8]) -> bool {
+    let public = match PublicKey::from_slice(public_key) {
+        Ok(pk) => pk,
+        Err(_) => return false,
+    };
+
+    let lib_signature = match Signature::from_slice(signature) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+
+    public.verify(message, &lib_signature).is_ok()
+}
 
 #[derive(Copy, Clone)]
 pub struct SigningKey {
@@ -57,7 +71,6 @@ impl SigningKey {
     pub fn encrypted_private_key(&self, encryption_key: &[u8; 32]) -> [u8; 64] {
         encrypt_32(&self.seed, &encryption_key)
     }
-
 }
 
 #[cfg(test)]

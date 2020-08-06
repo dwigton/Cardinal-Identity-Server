@@ -1,8 +1,10 @@
 use database::schema::{application};
 use database::MyConnection;
 use diesel::prelude::*;
-use error::CommonResult;
+use error::{CommonResult, CommonError};
 use model::account::UnlockedAccount;
+use encryption::hash_by_parts;
+use model::Signable;
 
 pub struct PortableApplication {
     pub code: String,
@@ -41,15 +43,47 @@ impl NewApplication {
     }
 }
 
+impl Signable for NewApplication {
+    fn record_hash(&self) -> [u8; 32] {
+       hash_by_parts(&[
+                   self.code.as_bytes(), 
+                   self.description.as_bytes(),
+                   self.server_url.as_bytes()
+       ])
+    }
+
+    fn signature(&self) -> Vec<u8>{
+        self.signature.clone()
+    }
+}
+
+impl Signable for Application {
+    fn record_hash(&self) -> [u8; 32] {
+       hash_by_parts(&[
+                   self.code.as_bytes(), 
+                   self.description.as_bytes(),
+                   self.server_url.as_bytes()
+       ])
+    }
+
+    fn signature(&self) -> Vec<u8>{
+        self.signature.clone()
+    }
+}
+
 impl Application {
     pub fn new(code: &str, description: &str, server_url: &str, account: &UnlockedAccount) -> NewApplication {
-        NewApplication {
+        let mut application = NewApplication {
             code: code.to_string(),
             description: description.to_string(),
             account_id: account.id,
             server_url: server_url.to_string(),
             signature: Vec::new(),
-        }
+        };
+
+        application.signature = account.sign_record(&application);
+
+        application
     }
 
     pub fn from_portable (account: &UnlockedAccount, import: &PortableApplication) -> NewApplication {
@@ -66,12 +100,16 @@ impl Application {
     }
 
     pub fn load_by_code ( code: &str, account: &UnlockedAccount, connection: &MyConnection) -> CommonResult<Application> {
-        Ok(
-            application::table
+        let application = application::table
             .filter( application::code.eq(code))
             .filter( application::account_id.eq(account.id))
-            .first(connection)?
-            )
+            .first(connection)?;
+
+        if account.verify_record(&application) {
+            Ok(application)
+        } else {
+            Err(CommonError::FailedVerification(None))
+        }
     }
 
     pub fn load_all (connection: &MyConnection) -> CommonResult<Vec<Application>> {

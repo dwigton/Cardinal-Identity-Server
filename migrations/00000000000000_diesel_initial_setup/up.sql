@@ -15,7 +15,8 @@ CREATE TABLE application(
 	code                   VARCHAR (256)               NOT NULL,
 	description            VARCHAR (256)               NOT NULL,
 	server_url             VARCHAR (512)               NOT NULL,
-    signature              BYTEA                       NOT NULL
+    signature              BYTEA                       NOT NULL,
+    UNIQUE (code, account_id)
 );
 
 CREATE TABLE read_grant_scope(
@@ -24,6 +25,7 @@ CREATE TABLE read_grant_scope(
     code            VARCHAR (20)                    NOT NULL,
     display_name    VARCHAR (255),
     description     VARCHAR (1000),
+	signature       BYTEA                           NOT NULL,
     UNIQUE (code, application_id)
 );
 

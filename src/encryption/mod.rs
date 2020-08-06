@@ -13,7 +13,7 @@ pub mod byte_encryption;
 // Maybe needt to set to 32 directly?
 //pub use encryption::ed25519_compact::PrivateKey::BYTES as SECRET_KEY_LENGTH;
 
-pub use encryption::x25519_dalek::PublicKey;
+pub use encryption::x25519_dalek::PublicKey as XPublicKey;
 pub use encryption::argon2rs::Argon2;
 pub use encryption::argon2rs::Variant::Argon2i;
 pub use encryption::rand::Rng;
@@ -96,6 +96,24 @@ pub fn secure_hash(data: &[&[u8]]) -> [u8; 32] {
     
     for slice in data {
         hash_data.extend_from_slice(slice);
+    }
+
+    hasher.input(hash_data);
+
+    hasher.result().into()
+}
+
+pub fn hash_by_parts(data: &[&[u8]]) -> [u8; 32] {
+    let mut hasher = Sha512Trunc256::new();
+    let mut hash_data = Vec::new();
+    
+    for slice in data {
+        
+        let mut slice_hasher = Sha512Trunc256::new();
+        slice_hasher.input(slice);
+        let add_data = slice_hasher.result();
+
+        hash_data.extend_from_slice(&add_data);
     }
 
     hasher.input(hash_data);

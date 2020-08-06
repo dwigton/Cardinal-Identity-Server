@@ -201,8 +201,31 @@ pub fn run(matches: &ArgMatches) {
             }
         }
     }
-
-    // edit an application.
+/*
+            .arg(Arg::with_name("write")
+                 .short("w")
+                 .long("write")
+                 .help("Write scope code, can be used multiple times.")
+                 .multiple(true)
+            )
+            .arg(Arg::with_name("read")
+                 .short("r")
+                 .long("read")
+                 .help("Read scope code, can be used multiple times.")
+                 .multiple(true)
+            )
+            .arg(Arg::with_name("delete")
+                 .short("d")
+                 .long("delete")
+                 .help("Delete the listed scopes")
+            )
+            .arg(Arg::with_name("force")
+                 .short("f")
+                 .long("force")
+                 .help("Delete without confirmation")
+            )
+*/
+    // add remove application scopes
     if let Some(matches) = matches.subcommand_matches("scope") {
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
@@ -219,21 +242,32 @@ pub fn run(matches: &ArgMatches) {
             None => get_input("Application code: "),
         };
 
-        if matches.is_present("force") || 
-            get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &application_code)) == "y" 
-            {
+        let write_scopes = matches.values_of("write");
+        let read_scopes = matches.values_of("read");
 
-            match Account::load_unlocked(&username, &password, &connection) {
-                Ok(account) => {
-                    match Application::load_by_code(&application_code, &account, &connection) {
-                        Ok(app) => match app.delete(&connection) {
-                            Ok(_) => println!("{} application deleted", &application_code),
-                            Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &application_code, e),
+        if matches.is_present("delete") {
+            // Delete named scopes
+            if matches.is_present("force") || 
+                get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &application_code)) == "y" 
+                {
+                    match Account::load_unlocked(&username, &password, &connection) {
+                        Ok(account) => {
+                            match Application::load_by_code(&application_code, &account, &connection) {
+                                Ok(app) => match app.delete(&connection) {
+                                    Ok(_) => println!("{} application deleted", &application_code),
+                                    Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &application_code, e),
+                                },
+                                Err(e) => eprintln!("Could not locate record {}. Error \"{}\"", &application_code, e),
+                            };
                         },
-                        Err(e) => eprintln!("Could not locate record {}. Error \"{}\"", &application_code, e),
-                    };
-                },
-                Err(_) => eprintln!("Could not find account {}.", &username), 
+                        Err(_) => eprintln!("Could not find account {}.", &username), 
+                    }
+                }
+        } else {
+            // create named scopes
+            if let Some(scopes) = write_scopes {
+                for scope in scopes {
+                }
             }
         }
     }
