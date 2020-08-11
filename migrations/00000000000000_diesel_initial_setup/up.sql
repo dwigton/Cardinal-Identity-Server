@@ -6,6 +6,7 @@ CREATE TABLE account(
     public_key             BYTEA                       NOT NULL,
     encrypted_private_key  BYTEA                       NOT NULL,
     master_key_salt        BYTEA                       NOT NULL,
+    encrypted_master_key   BYTEA                       NOT NULL,
     is_admin               BOOL                        NOT NULL	
 );
 
@@ -20,18 +21,20 @@ CREATE TABLE application(
 );
 
 CREATE TABLE read_grant_scope(
-    id              SERIAL          PRIMARY KEY     NOT NULL,
-    application_id  INT REFERENCES application(id)  NOT NULL,
-    code            VARCHAR (20)                    NOT NULL,
-    display_name    VARCHAR (255),
-    description     VARCHAR (1000),
-	signature       BYTEA                           NOT NULL,
+    id               SERIAL          PRIMARY KEY     NOT NULL,
+    application_id   INT REFERENCES application(id)  NOT NULL,
+    application_code VARCHAR (256)                   NOT NULL,
+    code             VARCHAR (20)                    NOT NULL,
+    display_name     VARCHAR (255),
+    description      VARCHAR (1000),
+	signature        BYTEA                           NOT NULL,
     UNIQUE (code, application_id)
 );
 
 CREATE TABLE write_grant_scope(
     id                     SERIAL           PRIMARY KEY    NOT NULL,
     application_id         INT REFERENCES application(id)  NOT NULL,
+    application_code       VARCHAR (256)                   NOT NULL,
     code                   VARCHAR (20)                    NOT NULL,
     display_name           VARCHAR (255),
     description            VARCHAR (1000),

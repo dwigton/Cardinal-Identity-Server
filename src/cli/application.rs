@@ -3,6 +3,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
 use model::account::Account;
 use model::application::Application;
+use model::scope::{WriteScope, ReadScope};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("application")
@@ -242,8 +243,8 @@ pub fn run(matches: &ArgMatches) {
             None => get_input("Application code: "),
         };
 
-        let write_scopes = matches.values_of("write");
-        let read_scopes = matches.values_of("read");
+        let write_scope_codes = matches.values_of_lossy("write");
+        let read_scope_codes = matches.values_of_lossy("read");
 
         let account = Account::load_unlocked(
             &username, 
@@ -270,16 +271,26 @@ pub fn run(matches: &ArgMatches) {
                 ) == "y" 
             {
                 // delete write_scopes
-                if let Some(scopes) = write_scopes {
+                if let Some(scope_codes) = write_scope_codes {
+                    let db_scopes = WriteScope::load_codes(scope_codes, &application, &connection).expect("Could not load scopes.");
+                    for mut scope in db_scopes {
+
+                        scope.delete(&connection).expect("Could Not delete scope");
+                    }
                 }
                 // delete read_scopes
-                if let Some(scopes) = read_scopes {
+                if let Some(scope_codes) = read_scope_codes {
+                    let db_scopes = ReadScope::load_codes(scope_codes, &application, &connection).expect("Could not load scopes.");
+                    for mut scope in db_scopes {
+
+                        scope.delete(&connection).expect("Could Not delete scope");
+                    }
                 }
             }
         } else {
             // create named scopes
-            if let Some(scopes) = write_scopes {
-                for scope in scopes {
+            if let Some(scope_codes) = write_scope_codes {
+                for scope in scope_codes {
                 }
             }
         }

@@ -7,6 +7,7 @@ table! {
         public_key -> Bytea,
         encrypted_private_key -> Bytea,
         master_key_salt -> Bytea,
+        encrypted_master_key -> Bytea,
         is_admin -> Bool,
     }
 }
@@ -58,9 +59,11 @@ table! {
     read_grant_scope (id) {
         id -> Int4,
         application_id -> Int4,
+        application_code -> Varchar,
         code -> Varchar,
         display_name -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
+        signature -> Bytea,
     }
 }
 
@@ -79,6 +82,7 @@ table! {
     write_grant_scope (id) {
         id -> Int4,
         application_id -> Int4,
+        application_code -> Varchar,
         code -> Varchar,
         display_name -> Nullable<Varchar>,
         description -> Nullable<Varchar>,

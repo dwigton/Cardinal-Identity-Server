@@ -6,6 +6,7 @@ use encryption::signing_key::SigningKey;
 use encryption::{hash_password, check_password, random_int_256, hash_salted_password, pk_bytes, secure_hash};
 use encryption::{decode_64, decode_32, to_512};
 use encryption::signing_key::verify_signature;
+use encryption::byte_encryption::{encrypt_32, decrypt_32};
 use error::{CommonResult, CommonError};
 use base64::{encode, decode};
 use model::application::PortableApplication;
@@ -31,6 +32,7 @@ pub struct NewAccount {
     pub public_key: Vec<u8>,
     pub encrypted_private_key: Vec<u8>,
     pub master_key_salt: Vec<u8>,
+    pub encrypted_master_key: Vec<u8>,
     pub is_admin: bool,
 }
 
@@ -44,6 +46,7 @@ pub struct LockedAccount {
     pub public_key: Vec<u8>,
     pub encrypted_private_key: Vec<u8>,
     pub master_key_salt: Vec<u8>,
+    pub encrypted_master_key: Vec<u8>,
     pub is_admin: bool,
 }
 
@@ -56,6 +59,7 @@ pub struct UnlockedAccount {
     pub public_key: Vec<u8>,
     pub encrypted_private_key: Vec<u8>,
     pub master_key_salt: Vec<u8>,
+    pub encrypted_master_key: Vec<u8>,
     pub is_admin: bool,
     master_key: [u8; 32],
     signing_key: SigningKey,
@@ -94,7 +98,9 @@ impl NewAccount {
     pub fn with_key(name: &str, password: &str, export_key: &str, signing_key: SigningKey, is_admin: bool) -> NewAccount {
 
         let master_key_salt       = random_int_256().to_vec();
-        let master_key            = hash_salted_password(password, &master_key_salt);
+        let master_encryption_key = hash_salted_password(password, &master_key_salt);
+        let master_key            = random_int_256();
+        let encrypted_master_key  = encrypt_32(&master_key, &master_encryption_key).to_vec(); 
         let encrypted_private_key = signing_key.encrypted_private_key(&master_key).to_vec();
         let password_hash         = hash_password(password);
         let export_key_hash       = hash_password(export_key);
@@ -107,6 +113,7 @@ impl NewAccount {
             public_key,
             encrypted_private_key,
             master_key_salt,
+            encrypted_master_key,
             is_admin,
         }
     }
@@ -149,7 +156,8 @@ impl LockedAccount {
             return Err(CommonError::CouldNotAuthenticate(None));
         }
 
-        let master_key = hash_salted_password(password, &self.master_key_salt);
+        let master_encryption_key = hash_salted_password(password, &self.master_key_salt);
+        let master_key = decrypt_32(to_512(&self.encrypted_master_key), &master_encryption_key)?;
 
         let signing_key = 
             SigningKey::from_encrypted(
@@ -166,6 +174,7 @@ impl LockedAccount {
             public_key:            self.public_key.clone(),
             encrypted_private_key: self.encrypted_private_key.clone(),
             master_key_salt:       self.master_key_salt.clone(),
+            encrypted_master_key:  self.encrypted_master_key.clone(),
             is_admin:              self.is_admin,
             master_key,
             signing_key,
@@ -192,6 +201,7 @@ impl From<UnlockedAccount> for LockedAccount {
             public_key:            unlocked.public_key.clone(),
             encrypted_private_key: unlocked.encrypted_private_key.clone(),
             master_key_salt:       unlocked.master_key_salt.clone(),
+            encrypted_master_key:  unlocked.encrypted_master_key.clone(),
             is_admin:              unlocked.is_admin,
         }
     }
@@ -243,14 +253,16 @@ impl UnlockedAccount {
     pub fn change_password(mut self, new_password: &str, connection: &MyConnection) -> CommonResult<()> {
         // first all associated records need to be unlocked and stored.
         
-        self.master_key_salt      = random_int_256().to_vec();
-        let master_key            = hash_salted_password(new_password, &self.master_key_salt);
-        self.encrypted_private_key = self.signing_key.encrypted_private_key(&master_key).to_vec();
-        self.password_hash        = hash_password(&new_password);
+        self.master_key_salt       = random_int_256().to_vec();
+        let master_encryption_key  = hash_salted_password(new_password, &self.master_key_salt);
+        self.encrypted_master_key  = encrypt_32(&self.master_key, &master_encryption_key).to_vec(); 
+        self.encrypted_private_key = self.signing_key.encrypted_private_key(&self.master_key).to_vec();
+        self.password_hash         = hash_password(&new_password);
 
         self.save(connection)
 
-        // all associated records need to be re-locked with the new master_key.
+        // with an encrypted master key, all associated records no longer need to be re-keyed with
+        // a password change.
     }
 
     pub fn save(self, connection: &MyConnection) -> CommonResult<()> {
@@ -261,7 +273,7 @@ impl UnlockedAccount {
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
         let applications = Application::load_all_for_account(&self, connection)?;
         for app in applications {
-            app.delete(connection);
+            app.delete(connection)?;
         }
         Account::delete_id(&self.id, connection)
     }
