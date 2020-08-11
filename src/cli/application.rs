@@ -245,24 +245,37 @@ pub fn run(matches: &ArgMatches) {
         let write_scopes = matches.values_of("write");
         let read_scopes = matches.values_of("read");
 
+        let account = Account::load_unlocked(
+            &username, 
+            &password, 
+            &connection
+            )
+            .expect("Could not load account");
+        
+        let application = Application::load_by_code(
+            &application_code, 
+            &account, 
+            &connection
+            )
+            .expect("Could not load application");
+
         if matches.is_present("delete") {
             // Delete named scopes
-            if matches.is_present("force") || 
-                get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &application_code)) == "y" 
-                {
-                    match Account::load_unlocked(&username, &password, &connection) {
-                        Ok(account) => {
-                            match Application::load_by_code(&application_code, &account, &connection) {
-                                Ok(app) => match app.delete(&connection) {
-                                    Ok(_) => println!("{} application deleted", &application_code),
-                                    Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &application_code, e),
-                                },
-                                Err(e) => eprintln!("Could not locate record {}. Error \"{}\"", &application_code, e),
-                            };
-                        },
-                        Err(_) => eprintln!("Could not find account {}.", &username), 
-                    }
+            if matches.is_present("force") 
+                || get_input(
+                &format!(
+                    "Are you sure you want to delete {}? [y/n]: ", 
+                    &application_code
+                    )
+                ) == "y" 
+            {
+                // delete write_scopes
+                if let Some(scopes) = write_scopes {
                 }
+                // delete read_scopes
+                if let Some(scopes) = read_scopes {
+                }
+            }
         } else {
             // create named scopes
             if let Some(scopes) = write_scopes {

@@ -1,5 +1,6 @@
 pub mod account;
 pub mod application;
+pub mod scope;
 //pub mod client;
 //
 
