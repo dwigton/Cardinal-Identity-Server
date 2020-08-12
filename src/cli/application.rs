@@ -288,9 +288,25 @@ pub fn run(matches: &ArgMatches) {
                 }
             }
         } else {
-            // create named scopes
+            // create named write scopes
             if let Some(scope_codes) = write_scope_codes {
-                for scope in scope_codes {
+                for scope_code in scope_codes {
+                   let scope = WriteScope::new(&scope_code, &application, &account); 
+                   match scope.save(&connection) {
+                       Ok(s) => println!("Write Scope {} created for {} application", s.code, s.application_code),
+                       Err(_) => eprintln!("Write Scope {} creation FAILED for {} application", scope_code, application.code),
+                   };
+                }
+            }
+
+            // Create read scopes
+            if let Some(scope_codes) = read_scope_codes {
+                for scope_code in scope_codes {
+                   let scope = WriteScope::new(&scope_code, &application, &account); 
+                   match scope.save(&connection) {
+                       Ok(s) => println!("Write Scope {} created for {} application", s.code, s.application_code),
+                       Err(_) => eprintln!("Write Scope {} creation FAILED for {} application", scope_code, application.code),
+                   };
                 }
             }
         }
