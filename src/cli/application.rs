@@ -103,12 +103,14 @@ pub fn init() -> App<'static, 'static> {
                  .long("write")
                  .help("Write scope code, can be used multiple times.")
                  .multiple(true)
+                 .takes_value(true)
             )
             .arg(Arg::with_name("read")
                  .short("r")
                  .long("read")
                  .help("Read scope code, can be used multiple times.")
                  .multiple(true)
+                 .takes_value(true)
             )
             .arg(Arg::with_name("delete")
                  .short("d")
@@ -304,8 +306,8 @@ pub fn run(matches: &ArgMatches) {
                 for scope_code in scope_codes {
                    let scope = WriteScope::new(&scope_code, &application, &account); 
                    match scope.save(&connection) {
-                       Ok(s) => println!("Write Scope {} created for {} application", s.code, s.application_code),
-                       Err(_) => eprintln!("Write Scope {} creation FAILED for {} application", scope_code, application.code),
+                       Ok(s) => println!("Read Scope {} created for {} application", s.code, s.application_code),
+                       Err(_) => eprintln!("Read Scope {} creation FAILED for {} application", scope_code, application.code),
                    };
                 }
             }
