@@ -204,30 +204,7 @@ pub fn run(matches: &ArgMatches) {
             }
         }
     }
-/*
-            .arg(Arg::with_name("write")
-                 .short("w")
-                 .long("write")
-                 .help("Write scope code, can be used multiple times.")
-                 .multiple(true)
-            )
-            .arg(Arg::with_name("read")
-                 .short("r")
-                 .long("read")
-                 .help("Read scope code, can be used multiple times.")
-                 .multiple(true)
-            )
-            .arg(Arg::with_name("delete")
-                 .short("d")
-                 .long("delete")
-                 .help("Delete the listed scopes")
-            )
-            .arg(Arg::with_name("force")
-                 .short("f")
-                 .long("force")
-                 .help("Delete without confirmation")
-            )
-*/
+
     // add remove application scopes
     if let Some(matches) = matches.subcommand_matches("scope") {
         let username = match matches.value_of("username") {
