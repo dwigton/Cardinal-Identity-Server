@@ -182,6 +182,16 @@ pub fn to_512(input: &[u8]) -> &[u8; 64] {
     }
 }
 
+pub fn to_256(input: &[u8]) -> &[u8; 32] {
+    if input.len() == 32 {
+        let ptr = input.as_ptr() as *const [u8; 32];
+        // SAFETY: ok because we just checked that the length fits
+        unsafe { &*ptr }
+    } else {
+        panic!("Array length not 32 bytes");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,4 +1,5 @@
 use database::schema::write_grant_scope;
+use database::schema::write_authorization;
 use database::schema::read_grant_scope;
 use database::MyConnection;
 use diesel::prelude::*;
@@ -8,9 +9,12 @@ use chrono::{Duration, Utc};
 use model::Signable;
 use model::account::UnlockedAccount;
 use model::application::Application;
-use error::CommonResult;
-use encryption::{secure_hash, random_int_256};
+use model::client::{Client, UnlockedClient};
+use error::{CommonResult, CommonError};
+use encryption::{hash_by_parts, random_int_256, to_256, to_512};
 use encryption::signing_key::SigningKey;
+use encryption::exchange_key::EphemeralKey;
+use encryption::byte_encryption::encrypt_32;
 
 pub struct WriteScope {}
 
@@ -26,6 +30,7 @@ pub struct UnlockedWriteScope {
     pub private_key_salt: Vec<u8>,
     pub expiration_date: NaiveDateTime,
     pub signature: Vec<u8>,
+    signing_key: SigningKey,
 }
 
 #[derive(Insertable)]
@@ -88,6 +93,29 @@ impl WriteScope {
         scope
     }
 
+    pub fn load_unlocked (codes: &[String], account: &UnlockedAccount, application: &Application, connection: &MyConnection) 
+        -> CommonResult<Vec<UnlockedWriteScope>> {
+       
+            let locked_scopes: Vec<LockedWriteScope> = 
+                write_grant_scope::table
+                .filter( write_grant_scope::application_id.eq(application.id))
+                .filter( write_grant_scope::code.eq(any(codes)))
+                .get_results(connection)?;
+
+            let mut scopes = Vec::new();
+
+            for locked_scope in locked_scopes {
+                if !account.verify_record(&locked_scope) {
+                    return Err(CommonError::FailedVerification(None));
+                }
+
+                let scope = locked_scope.unlock_by_account(account)?;
+                scopes.push(scope);
+            }
+
+            Ok(scopes)
+    }
+
     pub fn load_codes(codes: Vec<String>, application: &Application, connection: &MyConnection) -> CommonResult<Vec<LockedWriteScope>> {
         Ok(
             write_grant_scope::table
@@ -98,9 +126,35 @@ impl WriteScope {
     }
 }
 
+impl UnlockedWriteScope {
+    pub fn authorize(&self, account: &UnlockedAccount, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+
+        let ephemeral = EphemeralKey::new();
+        let public_key = ephemeral.public_key().to_vec();
+        let encryption_key = ephemeral.key_gen(*to_256(&client.client_id)); 
+        let access_key = account.generate_key(&self.private_key_salt);
+        let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
+        
+
+        let mut new_authorization = NewWriteAuthorization {
+            client_id: client.client_id.clone(),
+            write_grant_scope_id: self.id,
+            public_key,
+            encrypted_access_key,
+            signature: Vec::new(),
+        };
+
+        new_authorization.signature = account.sign_record(&new_authorization);
+
+        new_authorization.save(connection)?;
+
+        Ok(())
+    }
+}
+
 impl Signable for NewWriteScope {
     fn record_hash(&self) -> [u8; 32] {
-       secure_hash(&[
+       hash_by_parts(&[
                    self.application_code.as_bytes(),
                    self.code.as_bytes(), 
                    &self.public_key,
@@ -115,7 +169,7 @@ impl Signable for NewWriteScope {
 
 impl Signable for LockedWriteScope {
     fn record_hash(&self) -> [u8; 32] {
-       secure_hash(&[
+       hash_by_parts(&[
                    self.application_code.as_bytes(),
                    self.code.as_bytes(), 
                    &self.public_key,
@@ -139,6 +193,58 @@ impl LockedWriteScope {
     pub fn delete(&mut self, connection: &MyConnection) -> CommonResult<()> {
         diesel::delete(write_grant_scope::table.filter(write_grant_scope::id.eq(self.id))).execute(connection)?;
         Ok(())
+    }
+
+    fn to_unlocked(&self, encryption_key: &[u8; 32]) -> CommonResult<UnlockedWriteScope> {
+        let signing_key = SigningKey::from_encrypted(&encryption_key, to_256(&self.public_key), to_512(&self.encrypted_private_key))?;
+
+        Ok (UnlockedWriteScope {
+            id:                    self.id,
+            application_id:        self.application_id,
+            application_code:      self.application_code.clone(),
+            code:                  self.code.clone(),
+            display_name:          self.display_name.clone(),
+            description:           self.description.clone(),
+            public_key:            self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt:      self.private_key_salt.clone(),
+            expiration_date:       self.expiration_date.clone(),
+            signature:             self.signature.clone(),
+            signing_key,
+        })
+    }
+
+    pub fn unlock_by_account(&self, account: &UnlockedAccount) -> CommonResult<UnlockedWriteScope> {
+        let encryption_key = account.generate_key(to_256(&self.private_key_salt));
+        self.to_unlocked(&encryption_key)
+    }
+
+    pub fn unlock_by_client(&self, client: &UnlockedClient, authorization: &WriteAuthorization) -> CommonResult<UnlockedWriteScope> {
+        let encryption_key = client.unlock_key(
+            to_256(&authorization.public_key), 
+            to_512(&authorization.encrypted_access_key)
+            )?;
+
+        let signing_key = SigningKey::from_encrypted(
+            &encryption_key, 
+            to_256(&self.public_key), 
+            to_512(&self.encrypted_private_key)
+            )?;
+
+        Ok (UnlockedWriteScope {
+            id:                    self.id,
+            application_id:        self.application_id,
+            application_code:      self.application_code.clone(),
+            code:                  self.code.clone(),
+            display_name:          self.display_name.clone(),
+            description:           self.description.clone(),
+            public_key:            self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt:      self.private_key_salt.clone(),
+            expiration_date:       self.expiration_date.clone(),
+            signature:             self.signature.clone(),
+            signing_key,
+        })
     }
 }
 
@@ -200,7 +306,7 @@ impl ReadScope {
 
 impl Signable for NewReadScope {
     fn record_hash(&self) -> [u8; 32] {
-       secure_hash(&[
+       hash_by_parts(&[
                    self.application_code.as_bytes(),
                    self.code.as_bytes(), 
        ])
@@ -213,7 +319,7 @@ impl Signable for NewReadScope {
 
 impl Signable for ReadScope {
     fn record_hash(&self) -> [u8; 32] {
-       secure_hash(&[
+       hash_by_parts(&[
                    self.application_code.as_bytes(),
                    self.code.as_bytes(), 
        ])
@@ -227,5 +333,64 @@ impl Signable for ReadScope {
 impl NewReadScope {
     pub fn save(self, connection: &MyConnection) -> CommonResult<ReadScope> {
         Ok(diesel::insert_into(read_grant_scope::table).values(self).get_result(connection)?)
+    }
+}
+
+#[derive(PartialEq, Debug, Queryable)]
+pub struct WriteAuthorization {
+    client_id: Vec<u8>,
+    write_grant_scope_id: i32,
+    encrypted_access_key: Vec<u8>,
+    public_key: Vec<u8>,
+    signature: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[table_name = "write_authorization"]
+pub struct NewWriteAuthorization {
+    client_id: Vec<u8>,
+    write_grant_scope_id: i32,
+    encrypted_access_key: Vec<u8>,
+    public_key: Vec<u8>,
+    signature: Vec<u8>,
+}
+
+impl Signable for NewWriteAuthorization {
+    fn record_hash(&self) -> [u8; 32] {
+       hash_by_parts(&[
+                   &self.client_id,
+                   &self.write_grant_scope_id.to_le_bytes(),
+                   &self.encrypted_access_key,
+                   &self.public_key
+       ])
+    }
+
+    fn signature(&self) -> Vec<u8>{
+        self.signature.clone()
+    }
+}
+
+impl Signable for WriteAuthorization {
+    fn record_hash(&self) -> [u8; 32] {
+       hash_by_parts(&[
+                   &self.client_id,
+                   &self.write_grant_scope_id.to_le_bytes(),
+                   &self.encrypted_access_key,
+                   &self.public_key
+       ])
+    }
+
+    fn signature(&self) -> Vec<u8>{
+        self.signature.clone()
+    }
+}
+
+impl NewWriteAuthorization {
+    pub fn save(&self, connection: &MyConnection) -> CommonResult<WriteAuthorization> {
+        Ok(
+            diesel::insert_into(write_authorization::table)
+            .values(self)
+            .get_result(connection)?
+            )
     }
 }

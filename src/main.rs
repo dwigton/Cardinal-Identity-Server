@@ -28,7 +28,7 @@ fn main() {
         .about("Stores keys and authenticates messages on behalf of the user.")
         .subcommand(cli::account::init())
         .subcommand(cli::application::init())
-        //.subcommand(cli::client::init())
+        .subcommand(cli::client::init())
         //.subcommand(cli::export::init())
         //.subcommand(cli::import::init())
         .subcommand(cli::init::init())
@@ -70,11 +70,9 @@ fn main() {
         cli::application::run(matches);
     }
 
-    /*
     if let Some(matches) = matches.subcommand_matches("client") {
         cli::client::run(matches);
     }
-    */
 
 
     /*

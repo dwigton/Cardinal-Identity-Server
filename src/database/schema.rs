@@ -24,18 +24,17 @@ table! {
 }
 
 table! {
-    client (id) {
-        id -> Int4,
-        name -> Varchar,
+    client (client_id) {
         client_id -> Bytea,
         application_id -> Int4,
+        application_code -> Varchar,
+        signature -> Bytea,
     }
 }
 
 table! {
-    read_authorization (id) {
-        id -> Int4,
-        client_id -> Int4,
+    read_authorization (client_id, read_grant_key_id) {
+        client_id -> Bytea,
         read_grant_key_id -> Int4,
         encrypted_access_key -> Bytea,
         public_key -> Bytea,
@@ -68,9 +67,8 @@ table! {
 }
 
 table! {
-    write_authorization (id) {
-        id -> Int4,
-        client_id -> Int4,
+    write_authorization (client_id, write_grant_scope_id) {
+        client_id -> Bytea,
         write_grant_scope_id -> Int4,
         encrypted_access_key -> Bytea,
         public_key -> Bytea,

@@ -90,7 +90,7 @@ impl Application {
         Application::new(&import.code, &import.description, &import.server_url, account)
     }
 
-    pub fn to_portable(&self, export_key: &str, connection: &MyConnection) -> PortableApplication {
+    pub fn to_portable(&self, _export_key: &str, _connection: &MyConnection) -> PortableApplication {
 
         PortableApplication {
             code: self.code.clone(),

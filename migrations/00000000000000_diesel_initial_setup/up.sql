@@ -21,13 +21,13 @@ CREATE TABLE application(
 );
 
 CREATE TABLE read_grant_scope(
-    id               SERIAL          PRIMARY KEY     NOT NULL,
-    application_id   INT REFERENCES application(id)  NOT NULL,
-    application_code VARCHAR (256)                   NOT NULL,
-    code             VARCHAR (20)                    NOT NULL,
+    id               SERIAL          PRIMARY KEY       NOT NULL,
+    application_id   INT REFERENCES application(id)    NOT NULL,
+    application_code VARCHAR (256)                     NOT NULL,
+    code             VARCHAR (20)                      NOT NULL,
     display_name     VARCHAR (255),
     description      VARCHAR (1000),
-	signature        BYTEA                           NOT NULL,
+	signature        BYTEA                             NOT NULL,
     UNIQUE (code, application_id)
 );
 
@@ -47,15 +47,14 @@ CREATE TABLE write_grant_scope(
 );
 
 CREATE TABLE client(
-    id              SERIAL          PRIMARY KEY       NOT NULL,
-    name            VARCHAR (256) 					  NOT NULL,
-    client_id       BYTEA                             NOT NULL,
-    application_id  INT REFERENCES application(id)    NOT NULL,
-    UNIQUE (name, application_id)
+    client_id        BYTEA                PRIMARY KEY      NOT NULL,
+    application_id   INT REFERENCES application(id)        NOT NULL,
+    application_code VARCHAR (256)                         NOT NULL,
+    signature        BYTEA                                 NOT NULL
 );
 
 CREATE TABLE read_grant_key(
-    id                     SERIAL          PRIMARY KEY          NOT NULL,
+    id                     SERIAL         PRIMARY KEY           NOT NULL,
     read_grant_scope_id    INT REFERENCES read_grant_scope(id)  NOT NULL,
     public_key             BYTEA                                NOT NULL,
     encrypted_private_key  BYTEA                                NOT NULL,
@@ -65,19 +64,19 @@ CREATE TABLE read_grant_key(
 );
 
 CREATE TABLE read_authorization(
-    id                    SERIAL          PRIMARY KEY        NOT NULL,
-    client_id             INT REFERENCES client(id)          NOT NULL,
-    read_grant_key_id     INT REFERENCES read_grant_key(id)  NOT NULL,
-    encrypted_access_key  BYTEA                              NOT NULL,
-    public_key            BYTEA                              NOT NULL,
-    signature             BYTEA                              NOT NULL
+    client_id             BYTEA REFERENCES client(client_id)    NOT NULL,
+    read_grant_key_id     INT REFERENCES read_grant_key(id)     NOT NULL,
+    encrypted_access_key  BYTEA                                 NOT NULL,
+    public_key            BYTEA                                 NOT NULL,
+    signature             BYTEA                                 NOT NULL,
+    PRIMARY KEY(client_id, read_grant_key_id)
 );
 
 CREATE TABLE write_authorization(
-    id                    SERIAL          PRIMARY KEY           NOT NULL,
-    client_id             INT REFERENCES client(id)             NOT NULL,
+    client_id             BYTEA REFERENCES client(client_id)    NOT NULL,
     write_grant_scope_id  INT REFERENCES write_grant_scope(id)  NOT NULL,
     encrypted_access_key  BYTEA                                 NOT NULL,
     public_key            BYTEA                                 NOT NULL,
-    signature             BYTEA		                            NOT NULL
+    signature             BYTEA		                            NOT NULL,
+    PRIMARY KEY(client_id, write_grant_scope_id)
 );

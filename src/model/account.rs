@@ -209,7 +209,7 @@ impl From<UnlockedAccount> for LockedAccount {
 
 impl UnlockedAccount {
 
-    pub fn to_portable(&self, export_key: &str, passphrase: &str, connection: &MyConnection) -> CommonResult<PortableAccount> {
+    pub fn to_portable(&self, export_key: &str, passphrase: &str, _connection: &MyConnection) -> CommonResult<PortableAccount> {
 
         if !check_password(export_key, &self.export_key_hash) {
             return Err(CommonError::CouldNotAuthenticate(None));

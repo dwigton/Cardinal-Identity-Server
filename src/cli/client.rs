@@ -2,7 +2,10 @@ use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
 use model::account::Account;
+use model::application::Application;
 use model::client::{Client};
+use model::scope::WriteScope;
+use base64::encode;
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("client")
@@ -13,7 +16,7 @@ pub fn init() -> App<'static, 'static> {
                .short("a")
                .long("account")
                .help("The account for which to create a new client application authorization.")
-               .value_name("USERNAME")
+               .value_name("ACCOUNT")
                .takes_value(true)
             )
             .arg(Arg::with_name("password")
@@ -23,11 +26,11 @@ pub fn init() -> App<'static, 'static> {
                .value_name("PASSWORD")
                .takes_value(true)
             )
-            .arg(Arg::with_name("name")
-               .short("n")
-               .long("name")
-               .help("Client Application name.")
-               .value_name("NAME")
+            .arg(Arg::with_name("code")
+               .short("c")
+               .long("code")
+               .help("Application Code.")
+               .value_name("CODE")
                .takes_value(true)
             )
             .arg(Arg::with_name("write_scope")
@@ -54,7 +57,7 @@ pub fn init() -> App<'static, 'static> {
                  .short("a")
                  .long("account")
                  .help("The owner of the client authoriztion")
-                 .value_name("USERNAME")
+                 .value_name("ACCOUNT")
                  .takes_value(true)
             )
             .arg(Arg::with_name("password")
@@ -64,11 +67,11 @@ pub fn init() -> App<'static, 'static> {
                  .value_name("PASSWORD")
                  .takes_value(true)
             )
-            .arg(Arg::with_name("name")
-               .short("n")
-               .long("name")
-               .help("Client Application name.")
-               .value_name("NAME")
+            .arg(Arg::with_name("code")
+               .short("c")
+               .long("code")
+               .help("Application Code.")
+               .value_name("CODE")
                .takes_value(true)
             )
             .arg(Arg::with_name("force")
@@ -114,8 +117,8 @@ pub fn run(matches: &ArgMatches) {
     if let Some(matches) = matches.subcommand_matches("add") {
 
         let account = match matches.value_of("account") {
-            Some(u) => u.to_owned(),
-            None => get_input("Accountname: "),
+            Some(a) => a.to_owned(),
+            None => get_input("Account name: "),
         };
 
         let password = match matches.value_of("password") {
@@ -123,159 +126,43 @@ pub fn run(matches: &ArgMatches) {
             None => get_password("Account password: "),
         };
 
-        let application_name = match matches.value_of("application") {
-            Some(a) => a.to_owned(),
-            None => get_input("Application name: "),
-        };
-
-        let client_name = match matches.value_of("name") {
-            Some(p) => p.to_owned(),
-            None => get_input("New client name: "),
+        let application_code = match matches.value_of("code") {
+            Some(c) => c.to_owned(),
+            None => get_input("Application code: "),
         };
 
         // multiple scopes allowed. 
-        let write_scope_codes = match matches.values_of("write_scope") {
-            Some(p) => p.to_owned().collect(),
-            None => vec!(),
-        };
-
-        let read_scope_codes = match matches.values_of("read_scope") {
-            Some(p) => p.to_owned().collect(),
-            None => vec!(),
-        };
-
+        let write_scope_codes = matches.values_of_lossy("write");
+        let read_scope_codes = matches.values_of_lossy("read"); 
         // load account
-        let account = Account::load(&account, &connection).expect("Account, password not recognized");
-        let unlocked_account = account.to_unlocked(&password).expect("Account, password not recognized");
+        let account = Account::load_unlocked(&account, &password, &connection)
+            .expect("Account and password not recognized.");
 
-        // Create new client application
-        let mut client = Client::load_or_create(
-            &account.id, 
-            &client_name, 
-            &connection)
-            .expect("Could not load or create client.");
+        // load application
+        let application = Application::load_by_code(&application_code, &account, &connection)
+            .expect("Application not found");
 
-        // Load or create all requested scopes
-        let write_scopes = WriteGrantScope::try_load_all(
-            &account, 
-            &write_scope_codes, 
-            &connection
-            ).expect("Could not load or create requested scopes.");
+        // create new client
+        let (token, new_client) = Client::new(&account, &application);
 
-        let read_scopes = ReadGrantScope::try_load_all(
-            &account, 
-            &read_scope_codes, 
-            &connection
-            ).expect("Could not load or create requested scopes.");
-
-        for write_scope in write_scopes {
-            write_scope.authorize(&client, &account, &connection).expect("Could not authorize write scope for client");
-        }
-
-        for read_scope in read_scopes {
-            read_scope.authorize(&client, &account, &connection).expect("Could not authorize read scope for client");
-        }
-
-        println!("{}", client.to_string());
-    }
-
-    // Revoke authorization
-    if let Some(matches) = matches.subcommand_matches("revoke") {
-        let account = match matches.value_of("account") {
-            Some(u) => u.to_owned(),
-            None => get_input("Accountname: "),
+        let client = match new_client.save(&connection) {
+            Ok(c) => {
+                println!("Client {} for \"{}\" added.", encode(&c.client_id), application_code);
+                c
+            },
+            Err(e) => panic!("Could not save application. Error \"{}\"", e),
         };
 
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Password: "),
-        };
+        // Create any requested write scope authorizations
+        if let Some(values) = write_scope_codes {
+            let write_scopes = WriteScope::load_unlocked(&values, &account, &application, &connection)
+                .expect("Could not load write scopes."); 
 
-        let client_name = match matches.value_of("name") {
-            Some(p) => p.to_owned(),
-            None => get_input("New client name: "),
-        };
-
-
-        if matches.is_present("force") || 
-            get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &client_name)) == "y" 
-            {
-                // load account
-                let account = Account::load(&account, &password, &connection).expect("Account, password not recognized");
-
-                // multiple scopes allowed. 
-                let write_scope_codes = match matches.values_of("write_scope") {
-                    Some(p) => p.to_owned().collect(),
-                    None => vec!(),
-                };
-
-                let read_scope_codes = match matches.values_of("read_scope") {
-                    Some(p) => p.to_owned().collect(),
-                    None => vec!(),
-                };
-
-                let should_delete = matches.values_of("delete").is_some();
-
-                let revoke_all = matches.values_of("all").is_some() || should_delete;
-
-                // Load client application
-                // Should be impossible to trigger a panic on the unwrap.
-                let client = ClientApp::load_by_name(
-                    account.account.as_ref().unwrap().id, 
-                    &client_name, 
-                    &connection)
-                    .expect("Client does not exist.");
-
-                // Load all requested scopes
-                let write_scopes = WriteGrantScope::load_all(
-                    &account, 
-                    &connection
-                    ).expect("Could not load write scopes.");
-
-                let read_scopes = ReadGrantScope::load_all(
-                    &account, 
-                    &connection
-                    ).expect("Could not load read scopes.");
-
-                // revoke write authorizations
-                for write_scope in write_scopes {
-
-                    let mut should_revoke = revoke_all; 
-
-                    if !should_revoke {
-                        for write_scope_code in &write_scope_codes {
-                            if write_scope_code == &write_scope.get_code() {
-                                should_revoke = true;
-                            }
-                        }
-                    }
-
-                    if should_revoke {
-                        write_scope.revoke(&client, &connection).expect("Could not revoke write scope access for client");
-                    }
-                }
-
-                // Revoke read authorizations
-                for read_scope in read_scopes {
-                    let mut should_revoke = revoke_all; 
-
-                    if !should_revoke {
-                        for read_scope_code in &read_scope_codes {
-                            if read_scope_code == &read_scope.get_code() {
-                                should_revoke = true;
-                            }
-                        }
-                    }
-
-                    if should_revoke {
-                        read_scope.revoke(&client, &connection).expect("Could not revoke read scope access for client");
-                    }
-                }
-
-                if should_delete {
-                    client.delete(&connection).expect("Could not delete client application");
-                }
+            for write_scope in write_scopes {
+                write_scope.authorize(&account, &client, &connection).expect("Could not authorize");
             }
+        }
+
     }
 }
 

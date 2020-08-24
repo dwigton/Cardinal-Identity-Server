@@ -10,11 +10,11 @@ pub fn init() -> App<'static, 'static> {
         .about("Administration operations for application")
         .subcommand(SubCommand::with_name("add")
             .about("Add a new application")
-            .arg(Arg::with_name("username")
+            .arg(Arg::with_name("account_name")
                .short("u")
-               .long("username")
+               .long("account_name")
                .help("The account for which to add an application.")
-               .value_name("USERNAME")
+               .value_name("ACCOUNT")
                .takes_value(true)
             )
             .arg(Arg::with_name("password")
@@ -48,11 +48,11 @@ pub fn init() -> App<'static, 'static> {
         .subcommand(SubCommand::with_name("list").about("Show all applications"))
         .subcommand(SubCommand::with_name("delete")
             .about("Delete application.")
-            .arg(Arg::with_name("username")
+            .arg(Arg::with_name("account_name")
                  .short("u")
-                 .long("username")
+                 .long("account_name")
                  .help("The account name for which to delete the application.")
-                 .value_name("USERNAME")
+                 .value_name("ACCOUNT")
                  .takes_value(true)
             )
             .arg(Arg::with_name("password")
@@ -77,11 +77,11 @@ pub fn init() -> App<'static, 'static> {
         )
         .subcommand(SubCommand::with_name("scope")
             .about("edit scopes.")
-            .arg(Arg::with_name("username")
+            .arg(Arg::with_name("account_name")
                  .short("u")
-                 .long("username")
+                 .long("account_name")
                  .help("The account name for which to edit application scopes.")
-                 .value_name("USERNAME")
+                 .value_name("ACCOUNT")
                  .takes_value(true)
             )
             .arg(Arg::with_name("password")
@@ -132,7 +132,7 @@ pub fn run(matches: &ArgMatches) {
     // Create new application.
     if let Some(matches) = matches.subcommand_matches("add") {
 
-        let username = match matches.value_of("username") {
+        let account_name = match matches.value_of("account_name") {
             Some(u) => u.to_owned(),
             None => get_input("Account name: "),
         };
@@ -157,7 +157,7 @@ pub fn run(matches: &ArgMatches) {
             None => get_input("Application server url: "),
         };
 
-        let account = Account::load_unlocked(&username, &password, &connection)
+        let account = Account::load_unlocked(&account_name, &password, &connection)
             .expect("Account and password not recognized.");
 
         let application = Application::new(&application_code, &description, &server_url, &account);
@@ -171,7 +171,7 @@ pub fn run(matches: &ArgMatches) {
     // Delete application.
     if let Some(matches) = matches.subcommand_matches("delete") {
 
-        let username = match matches.value_of("username") {
+        let account_name = match matches.value_of("account_name") {
             Some(u) => u.to_owned(),
             None => get_input("Account name: "),
         };
@@ -190,7 +190,7 @@ pub fn run(matches: &ArgMatches) {
             get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &application_code)) == "y" 
             {
 
-            match Account::load_unlocked(&username, &password, &connection) {
+            match Account::load_unlocked(&account_name, &password, &connection) {
                 Ok(account) => {
                     match Application::load_by_code(&application_code, &account, &connection) {
                         Ok(app) => match app.delete(&connection) {
@@ -200,14 +200,14 @@ pub fn run(matches: &ArgMatches) {
                         Err(e) => eprintln!("Could not locate record {}. Error \"{}\"", &application_code, e),
                     };
                 },
-                Err(_) => eprintln!("Could not find account {}.", &username), 
+                Err(_) => eprintln!("Could not find account {}.", &account_name), 
             }
         }
     }
 
     // add remove application scopes
     if let Some(matches) = matches.subcommand_matches("scope") {
-        let username = match matches.value_of("username") {
+        let account_name = match matches.value_of("account_name") {
             Some(u) => u.to_owned(),
             None => get_input("Account name: "),
         };
@@ -226,7 +226,7 @@ pub fn run(matches: &ArgMatches) {
         let read_scope_codes = matches.values_of_lossy("read");
 
         let account = Account::load_unlocked(
-            &username, 
+            &account_name, 
             &password, 
             &connection
             )

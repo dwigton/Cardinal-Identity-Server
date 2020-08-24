@@ -47,6 +47,18 @@ impl ExchangeKey {
 
         Ok(ExchangeKey::from_key(decrypted_key))
     }
+
+    pub fn key_gen(&self, public_key: [u8; 32]) -> [u8; 32] {
+
+        let pk = PublicKey::from(public_key);
+        let shared_key = self.key.diffie_hellman(&pk);
+
+        let mut hasher = Sha512Trunc256::new();
+
+        hasher.input(shared_key.as_bytes());
+
+        hasher.result().try_into().unwrap()
+    }
 }
 
 pub struct EphemeralKey {
