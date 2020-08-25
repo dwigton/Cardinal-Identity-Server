@@ -1,6 +1,8 @@
 use database::schema::write_grant_scope;
 use database::schema::write_authorization;
 use database::schema::read_grant_scope;
+use database::schema::read_grant_key;
+use database::schema::read_authorization;
 use database::MyConnection;
 use diesel::prelude::*;
 use diesel::expression::dsl::any;
@@ -13,7 +15,7 @@ use model::client::{Client, UnlockedClient};
 use error::{CommonResult, CommonError};
 use encryption::{hash_by_parts, random_int_256, to_256, to_512};
 use encryption::signing_key::SigningKey;
-use encryption::exchange_key::EphemeralKey;
+use encryption::exchange_key::{ExchangeKey, EphemeralKey};
 use encryption::byte_encryption::encrypt_32;
 
 pub struct WriteScope {}
@@ -272,6 +274,17 @@ pub struct NewReadScope {
     pub signature: Vec<u8>,
 }
 
+pub struct UnlockedReadScope {
+    pub id: i32,
+    pub application_id: i32,
+    pub application_code: String,
+    pub code: String,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub signature: Vec<u8>,
+    read_keys: Vec<UnlockedReadGrantKey>,
+}
+
 impl ReadScope {
     pub fn new(code: &str, application: &Application, account: &UnlockedAccount) -> NewReadScope{
         
@@ -289,17 +302,54 @@ impl ReadScope {
         scope
     }
 
-    pub fn load_codes(codes: Vec<String>, application: &Application, connection: &MyConnection) -> CommonResult<Vec<ReadScope>> {
-        Ok(
-            read_grant_scope::table
+    pub fn load_codes(
+        codes: Vec<String>, 
+        account: &UnlockedAccount, 
+        application: &Application, 
+        connection: &MyConnection) -> CommonResult<Vec<ReadScope>> {
+            let scopes: Vec<ReadScope> = read_grant_scope::table
             .filter( read_grant_scope::application_id.eq(application.id))
             .filter( read_grant_scope::code.eq(any(codes)))
-            .get_results(connection)?
-            )
+            .get_results(connection)?;
+
+            for scope in &scopes {
+                if ! account.verify_record(scope) {
+                    return Err(CommonError::FailedVerification(Some("Write scope failed verification.".to_owned())));
+                }
+            }
+
+            Ok(scopes)
     }
+
+    pub fn to_unlocked(&self, account: &UnlockedAccount, connection: &MyConnection) -> CommonResult<UnlockedReadScope>{
+        let read_keys = ReadGrantKey::load_with_account(self, account, connection)?;
+
+        Ok(UnlockedReadScope{
+            id: self.id,
+            application_id: self.application_id,
+            application_code: self.application_code.clone(),
+            code: self.code.clone(),
+            display_name: self.display_name.clone(),
+            description: self.description.clone(),
+            signature: self.signature.clone(),
+            read_keys: read_keys,
+        })
+    }
+
 
     pub fn delete(&mut self, connection: &MyConnection) -> CommonResult<()> {
         diesel::delete(read_grant_scope::table.filter(read_grant_scope::id.eq(self.id))).execute(connection)?;
+        Ok(())
+    }
+}
+
+impl UnlockedReadScope {
+    pub fn authorize(&self, account: &UnlockedAccount, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+
+        for read_key in &self.read_keys {
+            read_key.authorize(account, client, connection)?;
+        }
+
         Ok(())
     }
 }
@@ -392,5 +442,134 @@ impl NewWriteAuthorization {
             .values(self)
             .get_result(connection)?
             )
+    }
+}
+
+#[derive(PartialEq, Debug, Queryable, Identifiable)]
+#[table_name = "read_grant_key"]
+pub struct ReadGrantKey {
+    id: i32,
+    read_grant_scope_id: i32,
+    public_key: Vec<u8>,
+    encrypted_private_key: Vec<u8>,
+    private_key_salt: Vec<u8>,
+    expiration_date: NaiveDateTime,
+    signature: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[table_name = "read_grant_key"]
+pub struct NewReadGrantKey {
+    read_grant_scope_id: i32,
+    public_key: Vec<u8>,
+    encrypted_private_key: Vec<u8>,
+    private_key_salt: Vec<u8>,
+    expiration_date: NaiveDateTime,
+    signature: Vec<u8>,
+}
+
+pub struct UnlockedReadGrantKey {
+    id: i32,
+    read_grant_scope_id: i32,
+    public_key: Vec<u8>,
+    encrypted_private_key: Vec<u8>,
+    private_key_salt: Vec<u8>,
+    expiration_date: NaiveDateTime,
+    signature: Vec<u8>,
+    exchange_key: ExchangeKey,
+}
+
+#[derive(PartialEq, Debug, Queryable, Insertable)]
+#[table_name = "read_authorization"]
+pub struct ReadAuthorization {
+    client_id: Vec<u8>,
+    read_grant_key_id: i32,
+    encrypted_access_key: Vec<u8>,
+    public_key: Vec<u8>,
+    signature: Vec<u8>,
+}
+
+impl Signable for ReadAuthorization {
+    fn record_hash(&self) -> [u8; 32] {
+       hash_by_parts(&[
+                   &self.client_id,
+                   &self.read_grant_key_id.to_le_bytes(),
+                   &self.encrypted_access_key,
+                   &self.public_key
+       ])
+    }
+
+    fn signature(&self) -> Vec<u8>{
+        self.signature.clone()
+    }
+}
+
+impl ReadAuthorization {
+    pub fn save(&self, connection: &MyConnection) -> CommonResult<()> {
+        diesel::insert_into(read_authorization::table).values(self).execute(connection);
+        Ok(())
+    }
+}
+
+impl ReadGrantKey {
+
+    pub fn load_with_account(
+        scope: &ReadScope,
+        account: &UnlockedAccount,
+        connection: &MyConnection) -> CommonResult<Vec<UnlockedReadGrantKey>>
+    {
+        let locked_keys: Vec<ReadGrantKey> = read_grant_key::table
+                .filter( read_grant_key::read_grant_scope_id.eq(scope.id))
+                .get_results(connection)?;
+
+        let mut unlocked_keys = Vec::new();
+
+        for locked_key in locked_keys {
+            unlocked_keys.push(locked_key.to_unlocked(account)?);
+        }
+
+        Ok(unlocked_keys)
+
+    }
+
+    pub fn to_unlocked (&self, account: &UnlockedAccount) -> CommonResult<UnlockedReadGrantKey> {
+        let encryption_key = account.generate_key(&self.private_key_salt);
+        let exchange_key = ExchangeKey::from_encrypted(&encryption_key, to_512(&self.encrypted_private_key))?;
+
+        Ok( UnlockedReadGrantKey {
+            id: self.id,
+            read_grant_scope_id: self.read_grant_scope_id,
+            public_key: self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt: self.private_key_salt.clone(),
+            expiration_date: self.expiration_date.clone(),
+            signature: self.signature.clone(),
+            exchange_key,
+        })
+    }
+}
+
+impl UnlockedReadGrantKey {
+    pub fn authorize(&self, account: &UnlockedAccount, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+        let ephemeral = EphemeralKey::new();
+        let public_key = ephemeral.public_key().to_vec();
+        let encryption_key = ephemeral.key_gen(*to_256(&client.client_id)); 
+        let access_key = account.generate_key(&self.private_key_salt);
+        let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
+        
+
+        let mut new_authorization = ReadAuthorization {
+            client_id: client.client_id.clone(),
+            read_grant_key_id: self.id,
+            encrypted_access_key,
+            public_key,
+            signature: Vec::new(),
+        };
+
+        new_authorization.signature = account.sign_record(&new_authorization);
+
+        new_authorization.save(connection)?;
+
+        Ok(())
     }
 }

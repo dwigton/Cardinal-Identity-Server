@@ -4,7 +4,7 @@ use cli::{get_input, get_password};
 use model::account::Account;
 use model::application::Application;
 use model::client::{Client};
-use model::scope::WriteScope;
+use model::scope::{WriteScope, ReadScope};
 use base64::encode;
 
 pub fn init() -> App<'static, 'static> {
@@ -163,6 +163,16 @@ pub fn run(matches: &ArgMatches) {
             }
         }
 
+        // Create any requested read scope authorizations
+        if let Some(values) = read_scope_codes {
+            let locked_read_scopes = ReadScope::load_codes(values, &account, &application, &connection)
+                .expect("Could not load read scopes."); 
+
+            for locked_read_scope in locked_read_scopes {
+                let read_scope = locked_read_scope.to_unlocked(&account, &connection).expect("Could not unlock read scope");
+                read_scope.authorize(&account, &client, &connection).expect("Could not authorize");
+            }
+        }
     }
 }
 

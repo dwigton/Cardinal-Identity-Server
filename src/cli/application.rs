@@ -259,7 +259,7 @@ pub fn run(matches: &ArgMatches) {
                 }
                 // delete read_scopes
                 if let Some(scope_codes) = read_scope_codes {
-                    let db_scopes = ReadScope::load_codes(scope_codes, &application, &connection).expect("Could not load scopes.");
+                    let db_scopes = ReadScope::load_codes(scope_codes, &account, &application, &connection).expect("Could not load scopes.");
                     for mut scope in db_scopes {
 
                         scope.delete(&connection).expect("Could Not delete scope");
