@@ -80,7 +80,6 @@ pub fn init() -> App<'static, 'static> {
                  .help("Revoke without confirmation")
             )
             .arg(Arg::with_name("all")
-                 .short("a")
                  .long("all")
                  .help("revoke all authorizations")
             )
@@ -183,5 +182,8 @@ pub fn run(matches: &ArgMatches) {
                     .expect("Could not authorize");
             }
         }
+
+        println!("Client ID: {}", encode(&client.client_id));
+        println!("Client Secret: {}", encode(&token));
     }
 }
