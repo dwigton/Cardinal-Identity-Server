@@ -1,11 +1,11 @@
-use database::establish_connection;
+use base64::encode;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
+use database::establish_connection;
 use model::account::Account;
 use model::application::Application;
-use model::client::{Client};
-use model::scope::{WriteScope, ReadScope};
-use base64::encode;
+use model::client::Client;
+use model::scope::{ReadScope, WriteScope};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("client")
@@ -109,13 +109,11 @@ pub fn init() -> App<'static, 'static> {
 }
 
 pub fn run(matches: &ArgMatches) {
-
     let connection = establish_connection().unwrap();
 
     // Create new client.
     // Returns client Id and client secret.
     if let Some(matches) = matches.subcommand_matches("add") {
-
         let account = match matches.value_of("account") {
             Some(a) => a.to_owned(),
             None => get_input("Account name: "),
@@ -131,9 +129,9 @@ pub fn run(matches: &ArgMatches) {
             None => get_input("Application code: "),
         };
 
-        // multiple scopes allowed. 
+        // multiple scopes allowed.
         let write_scope_codes = matches.values_of_lossy("write");
-        let read_scope_codes = matches.values_of_lossy("read"); 
+        let read_scope_codes = matches.values_of_lossy("read");
         // load account
         let account = Account::load_unlocked(&account, &password, &connection)
             .expect("Account and password not recognized.");
@@ -147,32 +145,43 @@ pub fn run(matches: &ArgMatches) {
 
         let client = match new_client.save(&connection) {
             Ok(c) => {
-                println!("Client {} for \"{}\" added.", encode(&c.client_id), application_code);
+                println!(
+                    "Client {} for \"{}\" added.",
+                    encode(&c.client_id),
+                    application_code
+                );
                 c
-            },
+            }
             Err(e) => panic!("Could not save application. Error \"{}\"", e),
         };
 
         // Create any requested write scope authorizations
         if let Some(values) = write_scope_codes {
-            let write_scopes = WriteScope::load_unlocked(&values, &account, &application, &connection)
-                .expect("Could not load write scopes."); 
+            let write_scopes =
+                WriteScope::load_unlocked(&values, &account, &application, &connection)
+                    .expect("Could not load write scopes.");
 
             for write_scope in write_scopes {
-                write_scope.authorize(&account, &client, &connection).expect("Could not authorize");
+                write_scope
+                    .authorize(&account, &client, &connection)
+                    .expect("Could not authorize");
             }
         }
 
         // Create any requested read scope authorizations
         if let Some(values) = read_scope_codes {
-            let locked_read_scopes = ReadScope::load_codes(values, &account, &application, &connection)
-                .expect("Could not load read scopes."); 
+            let locked_read_scopes =
+                ReadScope::load_codes(values, &account, &application, &connection)
+                    .expect("Could not load read scopes.");
 
             for locked_read_scope in locked_read_scopes {
-                let read_scope = locked_read_scope.to_unlocked(&account, &connection).expect("Could not unlock read scope");
-                read_scope.authorize(&account, &client, &connection).expect("Could not authorize");
+                let read_scope = locked_read_scope
+                    .to_unlocked(&account, &connection)
+                    .expect("Could not unlock read scope");
+                read_scope
+                    .authorize(&account, &client, &connection)
+                    .expect("Could not authorize");
             }
         }
     }
 }
-

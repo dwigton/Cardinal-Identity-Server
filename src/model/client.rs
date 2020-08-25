@@ -1,13 +1,13 @@
 use database::schema::client;
 use database::MyConnection;
 use diesel::prelude::*;
-use error::CommonResult;
-use model::Signable;
-use model::account::UnlockedAccount;
-use model::application::Application;
+use encryption::byte_encryption::decrypt_32;
 use encryption::exchange_key::ExchangeKey;
 use encryption::hash_by_parts;
-use encryption::byte_encryption::decrypt_32;
+use error::CommonResult;
+use model::account::UnlockedAccount;
+use model::application::Application;
+use model::Signable;
 
 #[derive(Insertable)]
 #[table_name = "client"]
@@ -36,26 +36,20 @@ pub struct UnlockedClient {
 
 impl Signable for NewClient {
     fn record_hash(&self) -> [u8; 32] {
-       hash_by_parts(&[
-                   self.application_code.as_bytes(), 
-                   &self.client_id
-       ])
+        hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
     }
 
-    fn signature(&self) -> Vec<u8>{
+    fn signature(&self) -> Vec<u8> {
         self.signature.clone()
     }
 }
 
 impl Signable for Client {
     fn record_hash(&self) -> [u8; 32] {
-       hash_by_parts(&[
-                   self.application_code.as_bytes(), 
-                   &self.client_id
-       ])
+        hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
     }
 
-    fn signature(&self) -> Vec<u8>{
+    fn signature(&self) -> Vec<u8> {
         self.signature.clone()
     }
 }
@@ -72,7 +66,7 @@ impl Client {
         };
 
         client.signature = account.sign_record(&client);
-        
+
         (key.private_key(), client)
     }
 
@@ -91,12 +85,18 @@ impl Client {
 
 impl NewClient {
     pub fn save(&self, connection: &MyConnection) -> CommonResult<Client> {
-        Ok(diesel::insert_into(client::table).values(self).get_result(connection)?)
+        Ok(diesel::insert_into(client::table)
+            .values(self)
+            .get_result(connection)?)
     }
 }
 
 impl UnlockedClient {
-    pub fn unlock_key(&self, public_key: &[u8; 32], encrypted_key: &[u8; 64]) -> CommonResult<[u8; 32]> {
+    pub fn unlock_key(
+        &self,
+        public_key: &[u8; 32],
+        encrypted_key: &[u8; 64],
+    ) -> CommonResult<[u8; 32]> {
         let key = self.exchange_key.key_gen(*public_key);
         Ok(decrypt_32(encrypted_key, &key)?)
     }

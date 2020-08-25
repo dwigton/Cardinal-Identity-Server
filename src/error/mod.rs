@@ -1,8 +1,8 @@
-use std::error;
-use std::fmt;
 use diesel;
 use encryption;
 use error::CommonError::*;
+use std::error;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum CommonError {
@@ -44,31 +44,48 @@ impl error::Error for CommonError {
 }
 
 impl From<diesel::result::Error> for CommonError {
-
     fn from(err: diesel::result::Error) -> CommonError {
         match err {
-        diesel::result::Error::NotFound => CommonError::NotFound(Some("Diesel Error".to_string())),
-        diesel::result::Error::InvalidCString(_) => CommonError::LibraryError(Some("Diesel InvalidCString".to_string())),
-        diesel::result::Error::DatabaseError(_, _) => CommonError::LibraryError(Some("Diesel DatabaseError".to_string())),
-        diesel::result::Error::QueryBuilderError(_) => CommonError::LibraryError(Some("Diesel QueryBuilderError".to_string())),
-        diesel::result::Error::DeserializationError(_) => CommonError::LibraryError(Some("Diesel DeserializationError".to_string())),
-        diesel::result::Error::SerializationError(_) => CommonError::LibraryError(Some("Diesel SerializationError".to_string())),
-        diesel::result::Error::RollbackTransaction => CommonError::LibraryError(Some("Diesel RollbackTransaction".to_string())),
-        diesel::result::Error::AlreadyInTransaction => CommonError::LibraryError(Some("Diesel AlreadyInTransaction".to_string())),
-        diesel::result::Error::__Nonexhaustive => CommonError::LibraryError(Some("Diesel __Nonexhaustive".to_string())),
+            diesel::result::Error::NotFound => {
+                CommonError::NotFound(Some("Diesel Error".to_string()))
+            }
+            diesel::result::Error::InvalidCString(_) => {
+                CommonError::LibraryError(Some("Diesel InvalidCString".to_string()))
+            }
+            diesel::result::Error::DatabaseError(_, _) => {
+                CommonError::LibraryError(Some("Diesel DatabaseError".to_string()))
+            }
+            diesel::result::Error::QueryBuilderError(_) => {
+                CommonError::LibraryError(Some("Diesel QueryBuilderError".to_string()))
+            }
+            diesel::result::Error::DeserializationError(_) => {
+                CommonError::LibraryError(Some("Diesel DeserializationError".to_string()))
+            }
+            diesel::result::Error::SerializationError(_) => {
+                CommonError::LibraryError(Some("Diesel SerializationError".to_string()))
+            }
+            diesel::result::Error::RollbackTransaction => {
+                CommonError::LibraryError(Some("Diesel RollbackTransaction".to_string()))
+            }
+            diesel::result::Error::AlreadyInTransaction => {
+                CommonError::LibraryError(Some("Diesel AlreadyInTransaction".to_string()))
+            }
+            diesel::result::Error::__Nonexhaustive => {
+                CommonError::LibraryError(Some("Diesel __Nonexhaustive".to_string()))
+            }
         }
     }
 }
 
 impl From<encryption::miscreant::Error> for CommonError {
-
     fn from(_err: encryption::miscreant::Error) -> CommonError {
-        CommonError::LibraryError(Some("Miscreant Error. Could be anything but probably truncated data.".to_string()))
+        CommonError::LibraryError(Some(
+            "Miscreant Error. Could be anything but probably truncated data.".to_string(),
+        ))
     }
 }
 
 impl From<base64::DecodeError> for CommonError {
-
     fn from(_err: base64::DecodeError) -> CommonError {
         CommonError::LibraryError(Some("base64 Error.".to_string()))
     }
@@ -76,9 +93,7 @@ impl From<base64::DecodeError> for CommonError {
 
 // This should be fleshed out at some point but not needed at the moment.
 impl From<std::io::Error> for CommonError {
-
     fn from(_err: std::io::Error) -> CommonError {
         CommonError::LibraryError(Some("IO Resource Error.".to_owned()))
     }
-
 }

@@ -1,91 +1,101 @@
-use database::establish_connection;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use cli::{get_input, get_password, get_new_password};
+use cli::{get_input, get_new_password, get_password};
+use database::establish_connection;
 use model::account::Account;
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("account")
         .about("Administration operations for accounts")
-        .subcommand(SubCommand::with_name("add")
-            .about("Add a new account")
-            .arg(Arg::with_name("username")
-               .short("u")
-               .long("username")
-               .help("The account name for which to create a new account.")
-               .value_name("USERNAME")
-               .takes_value(true)
-            )
-            .arg(Arg::with_name("password")
-               .short("p")
-               .long("password")
-               .help("The password used to encrypt this account's keys.")
-               .value_name("PASSWORD")
-               .takes_value(true)
-            )
-            .arg(Arg::with_name("exportkey")
-               .short("x")
-               .long("exportkey")
-               .help("Required to release an encrypted export of the account's keys.")
-               .value_name("EXPORT_KEY")
-               .takes_value(true)
-            )
+        .subcommand(
+            SubCommand::with_name("add")
+                .about("Add a new account")
+                .arg(
+                    Arg::with_name("username")
+                        .short("u")
+                        .long("username")
+                        .help("The account name for which to create a new account.")
+                        .value_name("USERNAME")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .long("password")
+                        .help("The password used to encrypt this account's keys.")
+                        .value_name("PASSWORD")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("exportkey")
+                        .short("x")
+                        .long("exportkey")
+                        .help("Required to release an encrypted export of the account's keys.")
+                        .value_name("EXPORT_KEY")
+                        .takes_value(true),
+                ),
         )
         .subcommand(SubCommand::with_name("list").about("Show all accounts"))
-        .subcommand(SubCommand::with_name("chngpwd")
-            .about("Change account password")
-            .arg(Arg::with_name("username")
-                 .short("u")
-                 .long("username")
-                 .help("The account name for which to change the password.")
-                 .value_name("USERNAME")
-                 .takes_value(true)
-            )
-            .arg(Arg::with_name("password")
-                 .short("p")
-                 .long("password")
-                 .help("The account's current password.")
-                 .value_name("PASSWORD")
-                 .takes_value(true)
-            )
-            .arg(Arg::with_name("newpassword")
-                 .short("r")
-                 .long("newpassword")
-                 .help("The replacement password.")
-                 .value_name("NEWPASSWORD")
-                 .takes_value(true)
-            )
+        .subcommand(
+            SubCommand::with_name("chngpwd")
+                .about("Change account password")
+                .arg(
+                    Arg::with_name("username")
+                        .short("u")
+                        .long("username")
+                        .help("The account name for which to change the password.")
+                        .value_name("USERNAME")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .long("password")
+                        .help("The account's current password.")
+                        .value_name("PASSWORD")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("newpassword")
+                        .short("r")
+                        .long("newpassword")
+                        .help("The replacement password.")
+                        .value_name("NEWPASSWORD")
+                        .takes_value(true),
+                ),
         )
-        .subcommand(SubCommand::with_name("delete")
-            .about("Delete account.")
-            .arg(Arg::with_name("username")
-                 .short("u")
-                 .long("username")
-                 .help("The account name to delete.")
-                 .value_name("USERNAME")
-                 .takes_value(true)
-            )
-            .arg(Arg::with_name("password")
-                 .short("p")
-                 .long("password")
-                 .help("The account's current password.")
-                 .value_name("PASSWORD")
-                 .takes_value(true)
-            )
-            .arg(Arg::with_name("force")
-                 .short("f")
-                 .long("force")
-                 .help("Delete without confirmation")
-            )
+        .subcommand(
+            SubCommand::with_name("delete")
+                .about("Delete account.")
+                .arg(
+                    Arg::with_name("username")
+                        .short("u")
+                        .long("username")
+                        .help("The account name to delete.")
+                        .value_name("USERNAME")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("password")
+                        .short("p")
+                        .long("password")
+                        .help("The account's current password.")
+                        .value_name("PASSWORD")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("force")
+                        .short("f")
+                        .long("force")
+                        .help("Delete without confirmation"),
+                ),
         )
 }
 
 pub fn run(matches: &ArgMatches) {
-
     let connection = establish_connection().unwrap();
 
     // Create new account.
     if let Some(matches) = matches.subcommand_matches("add") {
-
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
             None => get_input("New account name: "),
@@ -111,7 +121,6 @@ pub fn run(matches: &ArgMatches) {
 
     // Change account password.
     if let Some(matches) = matches.subcommand_matches("chngpwd") {
-
         let username = match matches.value_of("username") {
             Some(u) => u.to_owned(),
             None => get_input("Account name: "),
@@ -134,7 +143,7 @@ pub fn run(matches: &ArgMatches) {
                     Err(e) => eprintln!("Could not change password. Error \"{}\"", e),
                 }
             }
-            Err(_) => eprintln!("username and password not recognized."), 
+            Err(_) => eprintln!("username and password not recognized."),
         }
     }
 
@@ -150,25 +159,24 @@ pub fn run(matches: &ArgMatches) {
             None => get_password("Password: "),
         };
 
-        if matches.is_present("force") || 
-            get_input(&format!("Are you sure you want to delete {}? [y/n]: ", &username)) == "y" 
-            {
-
+        if matches.is_present("force")
+            || get_input(&format!(
+                "Are you sure you want to delete {}? [y/n]: ",
+                &username
+            )) == "y"
+        {
             match Account::load_unlocked(&username, &password, &connection) {
-                Ok(account) => {
-                    match account.delete(&connection) {
-                        Ok(_) => println!("Account {} deleted", &username),
-                        Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &username, e),
-                    }
-                }
-                Err(_) => eprintln!("Could not find account {}.", &username), 
+                Ok(account) => match account.delete(&connection) {
+                    Ok(_) => println!("Account {} deleted", &username),
+                    Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &username, e),
+                },
+                Err(_) => eprintln!("Could not find account {}.", &username),
             }
         }
     }
 
     // list all accounts
     if let Some(_) = matches.subcommand_matches("list") {
-
         let records = Account::load_all(&connection).expect("Error loading account accounts.");
 
         for i in 0..records.len() {

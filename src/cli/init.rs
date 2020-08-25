@@ -1,12 +1,12 @@
-use std::fs::OpenOptions;
-use std::io::{Write, BufReader, BufRead};
-use clap::{App, SubCommand};
-use database;
-use cli::{get_input, get_new_password};
-use model::account::{Account};
-use encryption::random_int_256;
-use database::establish_connection;
 use base64::encode;
+use clap::{App, SubCommand};
+use cli::{get_input, get_new_password};
+use database;
+use database::establish_connection;
+use encryption::random_int_256;
+use model::account::Account;
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("init").about("Initializes application before use.")
@@ -28,7 +28,10 @@ pub fn run() {
     set_env_variable("DATABASE_URL", database_url.as_str());
 
     let admin_user_name = get_input("Administrator User Name: ");
-    let password = get_new_password("Administrator User Password: ", "Reenter Admin User Password: ");
+    let password = get_new_password(
+        "Administrator User Password: ",
+        "Reenter Admin User Password: ",
+    );
     let export_key = encode(&random_int_256());
 
     let account = Account::new(&admin_user_name, &password, &export_key, true);
@@ -63,9 +66,7 @@ fn set_env_variable(variable: &str, value: &str) {
 
                 rewrite
             }
-            _ => {
-                format!("{}={}\n", variable, value)
-            }
+            _ => format!("{}={}\n", variable, value),
         }
     }
 
@@ -76,6 +77,7 @@ fn set_env_variable(variable: &str, value: &str) {
         .truncate(true)
         .open(".env")
         .expect("could not open or create .env");
-    
-    f.write_all(result.as_bytes()).expect("Could not write to .env");
+
+    f.write_all(result.as_bytes())
+        .expect("Could not write to .env");
 }

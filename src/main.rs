@@ -6,15 +6,16 @@ extern crate clap;
 extern crate serde;
 extern crate serde_json;
 //#[macro_use] extern crate rocket_contrib;
-#[macro_use] extern crate diesel;
+#[macro_use]
+extern crate diesel;
 //#[macro_use] extern crate serde_derive;
 
 extern crate base64;
 extern crate clear_on_drop;
 
+mod cli;
 mod database;
 mod encryption;
-mod cli;
 mod model;
 //mod web;
 mod error;
@@ -61,7 +62,6 @@ fn main() {
     }
     */
 
-
     if let Some(matches) = matches.subcommand_matches("account") {
         cli::account::run(matches);
     }
@@ -74,19 +74,15 @@ fn main() {
         cli::client::run(matches);
     }
 
-
     /*
     if let Some(matches) = matches.subcommand_matches("scope") {
         cli::scope::run(matches);
     }
     */
 
-
     /*
     if let Some(matches) = matches.subcommand_matches("sign") {
         cli::sign::run(matches);
     }
     */
-
 }
-

@@ -1,10 +1,10 @@
-use encryption::x25519_dalek::StaticSecret;
+use encryption::byte_encryption::{decrypt_32, encrypt_32};
+use encryption::rand;
 use encryption::x25519_dalek::EphemeralSecret;
 use encryption::x25519_dalek::PublicKey;
-use encryption::rand;
+use encryption::x25519_dalek::StaticSecret;
 use encryption::SECRET_KEY_LENGTH;
-use encryption::{Sha512Trunc256, Digest};
-use encryption::byte_encryption::{encrypt_32, decrypt_32};
+use encryption::{Digest, Sha512Trunc256};
 use error::CommonResult;
 use std::convert::TryInto;
 
@@ -24,7 +24,6 @@ impl ExchangeKey {
     }
 
     pub fn from_key(private: [u8; SECRET_KEY_LENGTH]) -> ExchangeKey {
-
         ExchangeKey {
             key: StaticSecret::from(private),
         }
@@ -42,14 +41,16 @@ impl ExchangeKey {
         self.key.to_bytes()
     }
 
-    pub fn from_encrypted(encryption_key: &[u8; 32], encrypted_key: &[u8; 64]) -> CommonResult<ExchangeKey>{ 
+    pub fn from_encrypted(
+        encryption_key: &[u8; 32],
+        encrypted_key: &[u8; 64],
+    ) -> CommonResult<ExchangeKey> {
         let decrypted_key: [u8; SECRET_KEY_LENGTH] = decrypt_32(&encrypted_key, &encryption_key)?;
 
         Ok(ExchangeKey::from_key(decrypted_key))
     }
 
     pub fn key_gen(&self, public_key: [u8; 32]) -> [u8; 32] {
-
         let pk = PublicKey::from(public_key);
         let shared_key = self.key.diffie_hellman(&pk);
 
@@ -62,7 +63,7 @@ impl ExchangeKey {
 }
 
 pub struct EphemeralKey {
-    key: EphemeralSecret
+    key: EphemeralSecret,
 }
 
 impl EphemeralKey {
@@ -79,7 +80,6 @@ impl EphemeralKey {
     }
 
     pub fn key_gen(self, public_key: [u8; 32]) -> [u8; 32] {
-
         let pk = PublicKey::from(public_key);
         let shared_key = self.key.diffie_hellman(&pk);
 
