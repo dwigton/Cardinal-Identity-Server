@@ -4,7 +4,7 @@ use diesel::prelude::*;
 use encryption::hash_by_parts;
 use error::{CommonError, CommonResult};
 use model::account::UnlockedAccount;
-use model::Signable;
+use model::{Signable, Signed};
 
 pub struct PortableApplication {
     pub code: String,
@@ -13,6 +13,13 @@ pub struct PortableApplication {
     //pub clients: Vec<PortableClient>,
     //pub read_grant_scopes: Vec<ReadGrantScope>,
     //pub write_grant_scopes: Vec<WriteGrantScope>,
+}
+
+pub struct UnsignedApplication {
+    pub account_id: i32,
+    pub code: String,
+    pub description: String,
+    pub server_url: String,
 }
 
 #[derive(Insertable)]
@@ -43,7 +50,7 @@ impl NewApplication {
     }
 }
 
-impl Signable for NewApplication {
+impl Signable<NewApplication> for UnsignedApplication {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[
             self.code.as_bytes(),
@@ -51,21 +58,15 @@ impl Signable for NewApplication {
             self.server_url.as_bytes(),
         ])
     }
+}
 
+impl Signed for NewApplication {
     fn signature(&self) -> Vec<u8> {
         self.signature.clone()
     }
 }
 
-impl Signable for Application {
-    fn record_hash(&self) -> [u8; 32] {
-        hash_by_parts(&[
-            self.code.as_bytes(),
-            self.description.as_bytes(),
-            self.server_url.as_bytes(),
-        ])
-    }
-
+impl Signed for Application {
     fn signature(&self) -> Vec<u8> {
         self.signature.clone()
     }
@@ -78,17 +79,14 @@ impl Application {
         server_url: &str,
         account: &UnlockedAccount,
     ) -> NewApplication {
-        let mut application = NewApplication {
+        let mut application = UnsignedApplication {
             code: code.to_string(),
             description: description.to_string(),
             account_id: account.id,
             server_url: server_url.to_string(),
-            signature: Vec::new(),
         };
 
-        application.signature = account.sign_record(&application);
-
-        application
+        account.sign_record(&application)
     }
 
     pub fn from_portable(

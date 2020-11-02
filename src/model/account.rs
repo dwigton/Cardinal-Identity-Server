@@ -14,7 +14,8 @@ use encryption::{decode_32, decode_64, to_512};
 use error::{CommonError, CommonResult};
 use model::application::Application;
 use model::application::PortableApplication;
-use model::Signable;
+use model::{Signable, Signed};
+use model::{Certifiable, Certified};
 
 pub struct PortableAccount {
     pub public_key: String,
@@ -187,7 +188,7 @@ impl LockedAccount {
         })
     }
 
-    pub fn verify_record(&self, record: &impl Signable) -> bool {
+    pub fn verify_record(&self, record: &impl Signed) -> bool {
         verify_signature(&self.public_key, &record.record_hash(), &record.signature())
     }
 
@@ -240,11 +241,17 @@ impl UnlockedAccount {
         })
     }
 
-    pub fn sign_record(&self, record: &impl Signable) -> Vec<u8> {
-        self.sign(&record.record_hash())
+    pub fn sign_record<T: Signed>(&self, record: &impl Signable<T>) -> T {
+        let signature = self.sign(&record.record_hash());
+        record.sign(signature)
     }
 
-    pub fn verify_record(&self, record: &impl Signable) -> bool {
+    pub fn certify_record<T: Certified>(&self, record: &impl Certifiable<T>) -> T {
+        let signature = self.sign(&record.data().hash());
+        record.certify(self.public_key, signature)
+    }
+
+    pub fn verify_record(&self, record: &impl Signed) -> bool {
         self.verify(&record.record_hash(), &record.signature())
     }
 

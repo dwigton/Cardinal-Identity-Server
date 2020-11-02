@@ -3,7 +3,8 @@ use cli::{get_input, get_password};
 use database::establish_connection;
 use model::account::Account;
 use model::application::Application;
-use model::scope::{ReadScope, WriteScope};
+use model::write_scope::WriteScope;
+use model::read_scope::ReadScope;
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("application")

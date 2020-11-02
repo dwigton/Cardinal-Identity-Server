@@ -7,7 +7,13 @@ use encryption::hash_by_parts;
 use error::CommonResult;
 use model::account::UnlockedAccount;
 use model::application::Application;
-use model::Signable;
+use model::{Signable, Signed};
+
+pub struct UnsignedClient {
+    pub client_id: Vec<u8>,
+    pub application_id: i32,
+    pub application_code: String,
+}
 
 #[derive(Insertable)]
 #[table_name = "client"]
@@ -17,6 +23,7 @@ pub struct NewClient {
     pub application_code: String,
     pub signature: Vec<u8>,
 }
+
 
 #[derive(Queryable)]
 pub struct Client {
@@ -34,7 +41,13 @@ pub struct UnlockedClient {
     exchange_key: ExchangeKey,
 }
 
-impl Signable for NewClient {
+impl Signable<NewClient> for UnsignedClient {
+    fn record_hash(&self) -> [u8; 32] {
+        hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
+    }
+}
+
+impl Signed for NewClient {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
     }
@@ -44,7 +57,7 @@ impl Signable for NewClient {
     }
 }
 
-impl Signable for Client {
+impl Signed for Client {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
     }
@@ -58,16 +71,15 @@ impl Client {
     pub fn new(account: &UnlockedAccount, application: &Application) -> ([u8; 32], NewClient) {
         let key = ExchangeKey::new();
 
-        let mut client = NewClient {
+        let mut client = UnsignedClient {
             application_id: application.id,
             application_code: application.code.clone(),
             client_id: key.public_key().to_vec(),
-            signature: Vec::new(),
         };
 
-        client.signature = account.sign_record(&client);
+        let new_client = account.sign_record(&client);
 
-        (key.private_key(), client)
+        (key.private_key(), new_client)
     }
 
     pub fn to_unlocked(&self, secret_token: [u8; 32]) -> UnlockedClient {

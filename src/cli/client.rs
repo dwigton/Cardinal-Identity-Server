@@ -5,7 +5,8 @@ use database::establish_connection;
 use model::account::Account;
 use model::application::Application;
 use model::client::Client;
-use model::scope::{ReadScope, WriteScope};
+use model::read_scope::ReadScope;
+use model::write_scope::WriteScope;
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("client")
