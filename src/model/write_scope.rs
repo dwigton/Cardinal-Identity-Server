@@ -7,13 +7,13 @@ use diesel::prelude::*;
 use encryption::byte_encryption::encrypt_32;
 use encryption::exchange_key::EphemeralKey;
 use encryption::signing_key::SigningKey;
-use encryption::{hash_by_parts, random_int_256, to_256, to_512};
+use encryption::{random_int_256, to_256, to_512};
 use error::{CommonError, CommonResult};
 use model::account::UnlockedAccount;
 use model::application::Application;
 use model::client::{Client, UnlockedClient};
 use model::{Certifiable, Scope};
-use model::write_authorization::{UnsignedWriteAuthorization, NewWriteAuthorization, WriteAuthorization};
+use model::write_authorization::{UnsignedWriteAuthorization, WriteAuthorization};
 use model::certificate::{CertData, Certificate};
 use model::Certified;
 
@@ -22,7 +22,6 @@ pub struct WriteScope {}
 pub struct UnlockedWriteScope {
     pub id: i32,
     pub application_id: i32,
-    pub application_code: String,
     pub code: String,
     pub display_name: Option<String>,
     pub description: Option<String>,
@@ -31,7 +30,8 @@ pub struct UnlockedWriteScope {
     pub private_key_salt: Vec<u8>,
     pub expiration_date: NaiveDateTime,
     pub signature: Vec<u8>,
-    signing_key: SigningKey,
+    pub application_code: String,
+    pub signing_key: SigningKey,
 }
 
 pub struct UncertifiedWriteScope {
@@ -64,7 +64,6 @@ pub struct NewWriteScope {
 #[table_name = "write_grant_scope"]
 pub struct InsertWriteScope {
     pub application_id: i32,
-    pub application_code: String,
     pub code: String,
     pub display_name: Option<String>,
     pub description: Option<String>,
@@ -80,7 +79,6 @@ pub struct InsertWriteScope {
 pub struct LockedWriteScope {
     pub id: i32,
     pub application_id: i32,
-    pub application_code: String,
     pub code: String,
     pub display_name: Option<String>,
     pub description: Option<String>,
@@ -89,7 +87,24 @@ pub struct LockedWriteScope {
     pub private_key_salt: Vec<u8>,
     pub expiration_date: NaiveDateTime,
     pub signature: Vec<u8>,
-    pub signing_key: [u8; 32], 
+    pub application_code: String,
+    pub signing_key: Vec<u8>,
+}
+
+impl InsertWriteScope {
+    fn new(source: &NewWriteScope) -> InsertWriteScope {
+        InsertWriteScope {
+            application_id: source.application_id,
+            code: source.code,
+            display_name: source.display_name,
+            description: source.description,
+            public_key: source.public_key,
+            encrypted_private_key: source.encrypted_private_key,
+            private_key_salt: source.private_key_salt,
+            expiration_date: source.expiration_date,
+            signature: source.signature,
+        }
+    }
 }
 
 impl WriteScope {
@@ -125,9 +140,24 @@ impl WriteScope {
         connection: &MyConnection,
     ) -> CommonResult<Vec<UnlockedWriteScope>> {
         let locked_scopes: Vec<LockedWriteScope> = write_grant_scope::table
+            .inner_join(application::table.inner_join(account::table))
             .filter(write_grant_scope::application_id.eq(application.id))
             .filter(write_grant_scope::code.eq(any(codes)))
-            .get_results(connection)?;
+            .select((
+                    write_grant_scope::id,
+                    write_grant_scope::application_id,
+                    write_grant_scope::code,
+                    write_grant_scope::display_name,
+                    write_grant_scope::description,
+                    write_grant_scope::public_key,
+                    write_grant_scope::encrypted_private_key,
+                    write_grant_scope::private_key_salt,
+                    write_grant_scope::expiration_date,
+                    write_grant_scope::signature,
+                    application::code,
+                    account::public_key
+                    ))
+            .load::<LockedWriteScope>(connection)?;
 
         let mut scopes = Vec::new();
 
@@ -149,9 +179,48 @@ impl WriteScope {
         connection: &MyConnection,
     ) -> CommonResult<Vec<LockedWriteScope>> {
         Ok(write_grant_scope::table
+            .inner_join(application::table.inner_join(account::table))
             .filter(write_grant_scope::application_id.eq(application.id))
             .filter(write_grant_scope::code.eq(any(codes)))
+            .select((
+                    write_grant_scope::id,
+                    write_grant_scope::application_id,
+                    write_grant_scope::code,
+                    write_grant_scope::display_name,
+                    write_grant_scope::description,
+                    write_grant_scope::public_key,
+                    write_grant_scope::encrypted_private_key,
+                    write_grant_scope::private_key_salt,
+                    write_grant_scope::expiration_date,
+                    write_grant_scope::signature,
+                    application::code,
+                    account::public_key
+                    ))
             .get_results(connection)?)
+    }
+
+    pub fn load_id(
+        id: i32,
+        connection: &MyConnection,
+    ) -> CommonResult<LockedWriteScope> {
+        Ok(write_grant_scope::table
+            .inner_join(application::table.inner_join(account::table))
+            .filter(write_grant_scope::id.eq(id))
+            .select((
+                    write_grant_scope::id,
+                    write_grant_scope::application_id,
+                    write_grant_scope::code,
+                    write_grant_scope::display_name,
+                    write_grant_scope::description,
+                    write_grant_scope::public_key,
+                    write_grant_scope::encrypted_private_key,
+                    write_grant_scope::private_key_salt,
+                    write_grant_scope::expiration_date,
+                    write_grant_scope::signature,
+                    application::code,
+                    account::public_key
+                    ))
+            .get_result(connection)?)
     }
 }
 
@@ -212,6 +281,22 @@ impl Certifiable<NewWriteScope> for UncertifiedWriteScope {
             expiration_date: self.expiration_date.clone(),
         }
     }
+
+    fn certify(&self, authorizing_key: Vec<u8>, signature: Vec<u8>) -> NewWriteScope {
+        NewWriteScope {
+            application_id: self.application_id,
+            application_code: self.application_code,
+            code: self.code,
+            display_name: self.display_name,
+            description: self.description,
+            public_key: self.public_key,
+            encrypted_private_key: self.encrypted_private_key,
+            private_key_salt: self.private_key_salt,
+            expiration_date: self.expiration_date,
+            signature,
+            signing_key: *to_256(&authorizing_key),
+        }
+    }
 }
 
 impl Certified for LockedWriteScope {
@@ -219,7 +304,7 @@ impl Certified for LockedWriteScope {
     fn certificate(&self) -> Certificate {
         Certificate {
             data: CertData{
-                signing_key:     self.signing_key,
+                signing_key:     *to_256(&self.signing_key),
                 public_key:      *to_256(&self.public_key),
                 scope:           Scope::Write{
                    application: self.application_code,
@@ -234,9 +319,12 @@ impl Certified for LockedWriteScope {
 
 impl NewWriteScope {
     pub fn save(self, connection: &MyConnection) -> CommonResult<LockedWriteScope> {
-        Ok(diesel::insert_into(write_grant_scope::table)
-            .values(self)
-            .get_result(connection)?)
+        let record_id: i32 = diesel::insert_into(write_grant_scope::table)
+            .values(InsertWriteScope::new(&self))
+            .returning(write_grant_scope::id)
+            .get_result(connection)?;
+        
+        Ok(WriteScope::load_id(record_id, connection)?)
     }
 }
 

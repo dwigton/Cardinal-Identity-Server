@@ -2,6 +2,7 @@ use model::Scope;
 use chrono::NaiveDateTime;
 use encryption::{to_256, hash_by_parts};
 use model::Certifiable;
+use model::Certified;
 
 #[derive(Clone)]
 pub struct CertData {
@@ -14,6 +15,13 @@ pub struct CertData {
 impl Certifiable<Certificate> for CertData {
     fn data(&self) -> CertData {
         self.clone()
+    }
+
+    fn certify(&self, authorizing_key: Vec<u8>, signature: Vec<u8>) -> Certificate{
+        Certificate {
+            data: self.clone(),
+            signature: *to_256(&signature),
+        }
     }
 }
 
@@ -33,6 +41,12 @@ impl CertData {
 pub struct Certificate {
     pub data: CertData,
     pub signature: [u8; 32],
+}
+
+impl Certified for Certificate {
+    fn certificate(&self) -> Certificate {
+        *self.clone()
+    }
 }
 
 impl Certificate {

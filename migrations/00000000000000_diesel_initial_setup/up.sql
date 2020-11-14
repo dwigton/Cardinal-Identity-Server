@@ -23,7 +23,6 @@ CREATE TABLE application(
 CREATE TABLE read_grant_scope(
     id               SERIAL          PRIMARY KEY       NOT NULL,
     application_id   INT REFERENCES application(id)    NOT NULL,
-    application_code VARCHAR (256)                     NOT NULL,
     code             VARCHAR (20)                      NOT NULL,
     display_name     VARCHAR (255),
     description      VARCHAR (1000),
@@ -34,7 +33,6 @@ CREATE TABLE read_grant_scope(
 CREATE TABLE write_grant_scope(
     id                     SERIAL           PRIMARY KEY    NOT NULL,
     application_id         INT REFERENCES application(id)  NOT NULL,
-    application_code       VARCHAR (256)                   NOT NULL,
     code                   VARCHAR (20)                    NOT NULL,
     display_name           VARCHAR (255),
     description            VARCHAR (1000),
@@ -49,7 +47,6 @@ CREATE TABLE write_grant_scope(
 CREATE TABLE client(
     client_id        BYTEA                PRIMARY KEY      NOT NULL,
     application_id   INT REFERENCES application(id)        NOT NULL,
-    application_code VARCHAR (256)                         NOT NULL,
     signature        BYTEA                                 NOT NULL
 );
 

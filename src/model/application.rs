@@ -58,17 +58,43 @@ impl Signable<NewApplication> for UnsignedApplication {
             self.server_url.as_bytes(),
         ])
     }
+
+    fn sign(&self, signature: Vec<u8>) -> NewApplication {
+        NewApplication {
+             account_id: self.account_id,
+             code: self.code,
+             description: self.description,
+             server_url: self.server_url,
+             signature,
+        }
+    }
 }
 
 impl Signed for NewApplication {
     fn signature(&self) -> Vec<u8> {
         self.signature.clone()
     }
+
+    fn record_hash(&self) -> [u8; 32] {
+        hash_by_parts(&[
+            self.code.as_bytes(),
+            self.description.as_bytes(),
+            self.server_url.as_bytes(),
+        ])
+    }
 }
 
 impl Signed for Application {
     fn signature(&self) -> Vec<u8> {
         self.signature.clone()
+    }
+
+    fn record_hash(&self) -> [u8; 32] {
+        hash_by_parts(&[
+            self.code.as_bytes(),
+            self.description.as_bytes(),
+            self.server_url.as_bytes(),
+        ])
     }
 }
 

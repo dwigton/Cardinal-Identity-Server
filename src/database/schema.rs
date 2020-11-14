@@ -27,7 +27,6 @@ table! {
     client (client_id) {
         client_id -> Bytea,
         application_id -> Int4,
-        application_code -> Varchar,
         signature -> Bytea,
     }
 }
@@ -58,7 +57,6 @@ table! {
     read_grant_scope (id) {
         id -> Int4,
         application_id -> Int4,
-        application_code -> Varchar,
         code -> Varchar,
         display_name -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
@@ -80,7 +78,6 @@ table! {
     write_grant_scope (id) {
         id -> Int4,
         application_id -> Int4,
-        application_code -> Varchar,
         code -> Varchar,
         display_name -> Nullable<Varchar>,
         description -> Nullable<Varchar>,

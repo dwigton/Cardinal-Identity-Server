@@ -15,8 +15,6 @@ pub struct UnsignedClient {
     pub application_code: String,
 }
 
-#[derive(Insertable)]
-#[table_name = "client"]
 pub struct NewClient {
     pub client_id: Vec<u8>,
     pub application_id: i32,
@@ -24,6 +22,13 @@ pub struct NewClient {
     pub signature: Vec<u8>,
 }
 
+#[derive(Insertable)]
+#[table_name = "client"]
+pub struct InsertClient {
+    pub client_id: Vec<u8>,
+    pub application_id: i32,
+    pub signature: Vec<u8>,
+}
 
 #[derive(Queryable)]
 pub struct Client {
@@ -44,6 +49,15 @@ pub struct UnlockedClient {
 impl Signable<NewClient> for UnsignedClient {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
+    }
+
+    fn sign(&self, signature: Vec<u8>) -> NewClient {
+        NewClient {
+            client_id: self.client_id,
+            application_id: self.application_id,
+            application_code: self.application_code,
+            signature,
+        }
     }
 }
 

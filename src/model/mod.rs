@@ -27,9 +27,16 @@ pub trait Certifiable<T: Certified> {
 
 pub trait Certified: {
     fn certificate(&self) -> Certificate;
+    fn data(&self) -> CertData {
+        self.certificate().data()
+    }
 }
 
 impl <T: Certified> Signed for T{
+    fn record_hash(&self) -> [u8; 32] {
+        self.data().hash()
+    }
+
     fn signature(&self) -> Vec<u8> {
         self.certificate().signature()
     }
