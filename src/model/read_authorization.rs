@@ -5,13 +5,12 @@ use database::schema::read_grant_key;
 use database::schema::write_authorization;
 use database::MyConnection;
 use diesel::prelude::*;
-use diesel::insertable::Insertable;
 use encryption::byte_encryption::encrypt_32;
 use encryption::exchange_key::{EphemeralKey, ExchangeKey};
 use encryption::{hash_by_parts, to_256, to_512, random_int_256};
 use error::CommonResult;
 use model::account::UnlockedAccount;
-use model::{Signed};
+use model::{Signed, Signable};
 use model::{Certified, Certifiable};
 use model::client::Client;
 use model::read_scope::{ReadScope, UnlockedReadScope};
@@ -97,6 +96,7 @@ pub struct UncertifiedReadGrantKey {
     pub expiration_date: NaiveDateTime,
     pub application_code: String,
     pub read_grant_code: String,
+    pub signing_key: Vec<u8>,
 }
 
 #[derive(Insertable)]
@@ -119,7 +119,7 @@ pub struct NewReadGrantKey {
     pub signature: Vec<u8>,
     pub application_code: String,
     pub read_grant_code: String,
-    pub signing_key: [u8; 32],
+    pub signing_key: Vec<u8>,
 }
 
 pub struct UnlockedReadGrantKey {
@@ -134,17 +134,42 @@ pub struct UnlockedReadGrantKey {
 }
 
 impl Certifiable<NewReadGrantKey> for UncertifiedReadGrantKey {
+    fn data(&self) -> CertData {
+        CertData{
+            signing_key: *to_256(&self.signing_key),
+            public_key: *to_256(&self.public_key),
+            scope: Scope::Write{
+                application: self.application_code.clone(),
+                grant: self.read_grant_code.clone(),
+            },
+            expiration_date: self.expiration_date.clone(),
+        }
+    }
+
+    fn certify(&self, authorizing_key: Vec<u8>, signature: Vec<u8>) -> NewReadGrantKey {
+        NewReadGrantKey {
+            read_grant_scope_id: self.read_grant_scope_id,
+            public_key: self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt: self.private_key_salt.clone(),
+            expiration_date: self.expiration_date,
+            signature,
+            application_code: self.application_code.clone(),
+            read_grant_code: self.read_grant_code.clone(),
+            signing_key: authorizing_key,
+        }
+    }
 }
 
 impl Certified for NewReadGrantKey {
     fn certificate(&self) -> Certificate {
         Certificate {
             data: CertData {
-                signing_key:     self.signing_key,
+                signing_key:     *to_256(&self.signing_key),
                 public_key:      *to_256(&self.public_key),
                 scope:           Scope::Read{
-                    application: self.application_code,
-                    grant: self.read_grant_code,
+                    application: self.application_code.clone(),
+                    grant: self.read_grant_code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },
@@ -157,11 +182,11 @@ impl NewReadGrantKey {
     pub fn to_insertable(&self) -> InsertReadGrantKey {
         InsertReadGrantKey {
             read_grant_scope_id:   self.read_grant_scope_id,
-            public_key:            self.public_key,
-            encrypted_private_key: self.encrypted_private_key,
-            private_key_salt:      self.private_key_salt,
+            public_key:            self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt:      self.private_key_salt.clone(),
             expiration_date:       self.expiration_date,
-            signature:             self.signature,
+            signature:             self.signature.clone(),
         }
     }
 
@@ -174,6 +199,13 @@ impl NewReadGrantKey {
     }
 }
 
+pub struct UnsignedReadAuthorization {
+    pub client_id: Vec<u8>,
+    pub read_grant_key_id: i32,
+    pub encrypted_access_key: Vec<u8>,
+    pub public_key: Vec<u8>,
+}
+
 #[derive(PartialEq, Debug, Queryable, Insertable)]
 #[table_name = "read_authorization"]
 pub struct ReadAuthorization {
@@ -182,6 +214,27 @@ pub struct ReadAuthorization {
     pub encrypted_access_key: Vec<u8>,
     pub public_key: Vec<u8>,
     pub signature: Vec<u8>,
+}
+
+impl Signable<ReadAuthorization> for UnsignedReadAuthorization {
+    fn record_hash(&self) -> [u8; 32] {
+        hash_by_parts(&[
+            &self.client_id,
+            &self.read_grant_key_id.to_le_bytes(),
+            &self.encrypted_access_key,
+            &self.public_key,
+        ])
+    }
+
+    fn sign(&self, signature: Vec<u8>) -> ReadAuthorization {
+        ReadAuthorization {
+            client_id: self.client_id.clone(),
+            read_grant_key_id: self.read_grant_key_id,
+            encrypted_access_key: self.encrypted_access_key.clone(),
+            public_key: self.public_key.clone(),
+            signature,
+        }
+    }
 }
 
 impl Signed for ReadAuthorization {
@@ -219,7 +272,7 @@ impl ReadGrantKey {
         let encrypted_private_key = exchange_key.encrypted_private_key(&encryption_key).to_vec();
         let public_key = exchange_key.public_key().to_vec();
 
-        let mut new_key = UncertifiedReadGrantKey {
+        let new_key = UncertifiedReadGrantKey {
             read_grant_scope_id: scope.id,
             public_key,
             encrypted_private_key,
@@ -227,9 +280,10 @@ impl ReadGrantKey {
             expiration_date,
             application_code: scope.application_code.clone(),
             read_grant_code: scope.code.clone(),
+            signing_key: account.public_key.clone(),
         };
 
-        account.sign_record(&new_key)
+        account.certify_record(&new_key)
     }
 
     pub fn load_with_account(
@@ -281,17 +335,14 @@ impl UnlockedReadGrantKey {
         let access_key = account.generate_key(&self.private_key_salt);
         let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
 
-        let mut new_authorization = ReadAuthorization {
+        let new_authorization = UnsignedReadAuthorization {
             client_id: client.client_id.clone(),
             read_grant_key_id: self.id,
             encrypted_access_key,
             public_key,
-            signature: Vec::new(),
         };
 
-        new_authorization.signature = account.sign_record(&new_authorization);
-
-        new_authorization.save(connection)?;
+        account.sign_record(&new_authorization).save(connection)?;
 
         Ok(())
     }

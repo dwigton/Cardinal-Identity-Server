@@ -17,7 +17,7 @@ impl Certifiable<Certificate> for CertData {
         self.clone()
     }
 
-    fn certify(&self, authorizing_key: Vec<u8>, signature: Vec<u8>) -> Certificate{
+    fn certify(&self, _authorizing_key: Vec<u8>, signature: Vec<u8>) -> Certificate{
         Certificate {
             data: self.clone(),
             signature: *to_256(&signature),
@@ -27,7 +27,8 @@ impl Certifiable<Certificate> for CertData {
 
 impl CertData {
     pub fn hash(&self) -> [u8; 32] {
-        let date = to_256(&self.expiration_date.timestamp().to_le_bytes());
+        let time = self.expiration_date.timestamp().to_le_bytes();
+        let date = to_256(&time);
 
         hash_by_parts(&[
                       &self.signing_key,
@@ -45,7 +46,10 @@ pub struct Certificate {
 
 impl Certified for Certificate {
     fn certificate(&self) -> Certificate {
-        *self.clone()
+        Certificate {
+            data: self.data.clone(),
+            signature: self.signature,
+        }
     }
 }
 

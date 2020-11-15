@@ -62,9 +62,9 @@ impl Signable<NewApplication> for UnsignedApplication {
     fn sign(&self, signature: Vec<u8>) -> NewApplication {
         NewApplication {
              account_id: self.account_id,
-             code: self.code,
-             description: self.description,
-             server_url: self.server_url,
+             code: self.code.clone(),
+             description: self.description.clone(),
+             server_url: self.server_url.clone(),
              signature,
         }
     }
@@ -105,7 +105,7 @@ impl Application {
         server_url: &str,
         account: &UnlockedAccount,
     ) -> NewApplication {
-        let mut application = UnsignedApplication {
+        let application = UnsignedApplication {
             code: code.to_string(),
             description: description.to_string(),
             account_id: account.id,

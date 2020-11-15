@@ -44,6 +44,7 @@ pub struct UncertifiedWriteScope {
     pub encrypted_private_key: Vec<u8>,
     pub private_key_salt: Vec<u8>,
     pub expiration_date: NaiveDateTime,
+    pub signing_key: Vec<u8>,
 }
 
 pub struct NewWriteScope {
@@ -95,14 +96,14 @@ impl InsertWriteScope {
     fn new(source: &NewWriteScope) -> InsertWriteScope {
         InsertWriteScope {
             application_id: source.application_id,
-            code: source.code,
-            display_name: source.display_name,
-            description: source.description,
-            public_key: source.public_key,
-            encrypted_private_key: source.encrypted_private_key,
-            private_key_salt: source.private_key_salt,
+            code: source.code.clone(),
+            display_name: source.display_name.clone(),
+            description: source.description.clone(),
+            public_key: source.public_key.clone(),
+            encrypted_private_key: source.encrypted_private_key.clone(),
+            private_key_salt: source.private_key_salt.clone(),
             expiration_date: source.expiration_date,
-            signature: source.signature,
+            signature: source.signature.clone(),
         }
     }
 }
@@ -118,7 +119,7 @@ impl WriteScope {
         let encrypted_private_key = signing_key.encrypted_private_key(&encryption_key).to_vec();
         let public_key = signing_key.public_key().to_vec();
 
-        let mut scope = UncertifiedWriteScope {
+        let scope = UncertifiedWriteScope {
             application_id: application.id,
             application_code: application.code.clone(),
             code: code.to_owned(),
@@ -128,6 +129,7 @@ impl WriteScope {
             encrypted_private_key,
             private_key_salt: salt.to_vec(),
             expiration_date,
+            signing_key: account.public_key.clone(),
         };
 
         account.certify_record(&scope)
@@ -237,7 +239,7 @@ impl UnlockedWriteScope {
         let access_key = account.generate_key(&self.private_key_salt);
         let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
 
-        let mut new_authorization = UnsignedWriteAuthorization {
+        let new_authorization = UnsignedWriteAuthorization {
             client_id: client.client_id.clone(),
             write_grant_scope_id: self.id,
             public_key,
@@ -257,8 +259,8 @@ impl Certified for NewWriteScope {
                 signing_key:     self.signing_key,
                 public_key:      *to_256(&self.public_key),
                 scope:           Scope::Write{
-                   application: self.application_code,
-                   grant: self.code,
+                   application: self.application_code.clone(),
+                   grant: self.code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },
@@ -271,8 +273,7 @@ impl Certifiable<NewWriteScope> for UncertifiedWriteScope {
 
     fn data(&self) -> CertData {
         CertData{
-            // It appears I put crap data here.
-            signing_key: [7u8; 32],
+            signing_key: *to_256(&self.signing_key),
             public_key: *to_256(&self.public_key.clone()),
             scope: Scope::Write{
                 application: self.application_code.clone(),
@@ -285,13 +286,13 @@ impl Certifiable<NewWriteScope> for UncertifiedWriteScope {
     fn certify(&self, authorizing_key: Vec<u8>, signature: Vec<u8>) -> NewWriteScope {
         NewWriteScope {
             application_id: self.application_id,
-            application_code: self.application_code,
-            code: self.code,
-            display_name: self.display_name,
-            description: self.description,
-            public_key: self.public_key,
-            encrypted_private_key: self.encrypted_private_key,
-            private_key_salt: self.private_key_salt,
+            application_code: self.application_code.clone(),
+            code: self.code.clone(),
+            display_name: self.display_name.clone(),
+            description: self.description.clone(),
+            public_key: self.public_key.clone(),
+            encrypted_private_key: self.encrypted_private_key.clone(),
+            private_key_salt: self.private_key_salt.clone(),
             expiration_date: self.expiration_date,
             signature,
             signing_key: *to_256(&authorizing_key),
@@ -307,8 +308,8 @@ impl Certified for LockedWriteScope {
                 signing_key:     *to_256(&self.signing_key),
                 public_key:      *to_256(&self.public_key),
                 scope:           Scope::Write{
-                   application: self.application_code,
-                   grant: self.code,
+                   application: self.application_code.clone(),
+                   grant: self.code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },

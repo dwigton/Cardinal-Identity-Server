@@ -1,4 +1,5 @@
 use database::schema::client;
+use database::schema::application;
 use database::MyConnection;
 use diesel::prelude::*;
 use encryption::byte_encryption::decrypt_32;
@@ -8,6 +9,7 @@ use error::CommonResult;
 use model::account::UnlockedAccount;
 use model::application::Application;
 use model::{Signable, Signed};
+use std::convert::From;
 
 pub struct UnsignedClient {
     pub client_id: Vec<u8>,
@@ -46,6 +48,16 @@ pub struct UnlockedClient {
     exchange_key: ExchangeKey,
 }
 
+impl From<NewClient> for InsertClient {
+    fn from(item: NewClient) -> InsertClient {
+        InsertClient {
+            client_id: item.client_id,
+            application_id: item.application_id,
+            signature: item.signature,
+        }
+    }
+}
+
 impl Signable<NewClient> for UnsignedClient {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
@@ -53,9 +65,9 @@ impl Signable<NewClient> for UnsignedClient {
 
     fn sign(&self, signature: Vec<u8>) -> NewClient {
         NewClient {
-            client_id: self.client_id,
+            client_id: self.client_id.clone(),
             application_id: self.application_id,
-            application_code: self.application_code,
+            application_code: self.application_code.clone(),
             signature,
         }
     }
@@ -81,11 +93,21 @@ impl Signed for Client {
     }
 }
 
+impl Signed for UnlockedClient {
+    fn record_hash(&self) -> [u8; 32] {
+        hash_by_parts(&[self.application_code.as_bytes(), &self.client_id])
+    }
+
+    fn signature(&self) -> Vec<u8> {
+        self.signature.clone()
+    }
+}
+
 impl Client {
     pub fn new(account: &UnlockedAccount, application: &Application) -> ([u8; 32], NewClient) {
         let key = ExchangeKey::new();
 
-        let mut client = UnsignedClient {
+        let client = UnsignedClient {
             application_id: application.id,
             application_code: application.code.clone(),
             client_id: key.public_key().to_vec(),
@@ -107,13 +129,33 @@ impl Client {
             exchange_key,
         }
     }
+
+    pub fn load_id(
+        id: Vec<u8>,
+        connection: &MyConnection,
+    ) -> CommonResult<Client> {
+        Ok(client::table
+            .inner_join(application::table)
+            .filter(client::client_id.eq(id))
+            .select((
+                    client::client_id,
+                    client::application_id,
+                    application::code,
+                    client::signature
+                    ))
+            .get_result(connection)?)
+    }
 }
 
 impl NewClient {
-    pub fn save(&self, connection: &MyConnection) -> CommonResult<Client> {
-        Ok(diesel::insert_into(client::table)
-            .values(self)
-            .get_result(connection)?)
+    pub fn save(self, connection: &MyConnection) -> CommonResult<Client> {
+        let client_id: Vec<u8> = 
+            diesel::insert_into(client::table)
+            .values(InsertClient::from(self))
+            .returning(client::client_id)
+            .get_result(connection)?;
+
+        Ok(Client::load_id(client_id, connection)?)
     }
 }
 

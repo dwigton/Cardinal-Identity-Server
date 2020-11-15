@@ -248,7 +248,7 @@ impl UnlockedAccount {
 
     pub fn certify_record<T: Certified>(&self, record: &impl Certifiable<T>) -> T {
         let signature = self.sign(&record.data().hash());
-        record.certify(self.public_key, signature)
+        record.certify(self.public_key.clone(), signature)
     }
 
     pub fn verify_record(&self, record: &impl Signed) -> bool {

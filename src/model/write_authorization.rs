@@ -1,10 +1,8 @@
 use database::schema::write_authorization;
 use database::MyConnection;
-use diesel::expression::dsl::any;
 use diesel::prelude::*;
 use error::CommonResult;
 use model::{Signable, Signed};
-use model::Scope;
 use encryption::hash_by_parts;
 
 
@@ -46,10 +44,10 @@ impl Signable<NewWriteAuthorization> for UnsignedWriteAuthorization {
 
     fn sign(&self, signature: Vec<u8>) -> NewWriteAuthorization {
         NewWriteAuthorization {
-            client_id: self.client_id,
+            client_id: self.client_id.clone(),
             write_grant_scope_id: self.write_grant_scope_id,
-            encrypted_access_key: self.encrypted_access_key,
-            public_key: self.public_key,
+            encrypted_access_key: self.encrypted_access_key.clone(),
+            public_key: self.public_key.clone(),
             signature,
         }
     }

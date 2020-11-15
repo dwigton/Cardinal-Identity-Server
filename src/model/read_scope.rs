@@ -1,4 +1,5 @@
 use database::schema::read_grant_scope;
+use database::schema::application;
 use database::MyConnection;
 use diesel::expression::dsl::any;
 use diesel::prelude::*;
@@ -31,11 +32,19 @@ pub struct UnsignedReadScope {
     pub description: Option<String>,
 }
 
-#[derive(Insertable)]
-#[table_name = "read_grant_scope"]
 pub struct NewReadScope {
     pub application_id: i32,
     pub application_code: String,
+    pub code: String,
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    pub signature: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[table_name = "read_grant_scope"]
+pub struct InsertReadScope {
+    pub application_id: i32,
     pub code: String,
     pub display_name: Option<String>,
     pub description: Option<String>,
@@ -53,15 +62,38 @@ pub struct UnlockedReadScope {
     read_keys: Vec<UnlockedReadGrantKey>,
 }
 
+impl From<NewReadScope> for InsertReadScope {
+    fn from(item: NewReadScope) -> InsertReadScope {
+        InsertReadScope {
+            application_id: item.application_id,
+            code: item.code,
+            display_name: item.display_name,
+            description: item.description,
+            signature: item.signature,
+        }
+    }
+}
+
 impl Signable<NewReadScope> for UnsignedReadScope {
     fn record_hash(&self) -> [u8; 32] {
         hash_by_parts(&[self.application_code.as_bytes(), self.code.as_bytes()])
+    }
+
+    fn sign(&self, signature: Vec<u8>) -> NewReadScope {
+        NewReadScope{
+            application_id: self.application_id,
+            application_code: self.application_code.clone(),
+            code: self.code.clone(),
+            display_name: self.display_name.clone(),
+            description: self.description.clone(),
+            signature,
+        }
     }
 }
 
 impl ReadScope {
     pub fn new(code: &str, application: &Application, account: &UnlockedAccount) -> NewReadScope {
-        let mut scope = UnsignedReadScope {
+        let scope = UnsignedReadScope {
             application_id: application.id,
             application_code: application.code.clone(),
             code: code.to_owned(),
@@ -79,9 +111,19 @@ impl ReadScope {
         connection: &MyConnection,
     ) -> CommonResult<Vec<ReadScope>> {
         let scopes: Vec<ReadScope> = read_grant_scope::table
+            .inner_join(application::table)
             .filter(read_grant_scope::application_id.eq(application.id))
             .filter(read_grant_scope::code.eq(any(codes)))
-            .get_results(connection)?;
+            .select((
+                    read_grant_scope::id,
+                    read_grant_scope::application_id,
+                    application::code,
+                    read_grant_scope::code,
+                    read_grant_scope::display_name,
+                    read_grant_scope::description,
+                    read_grant_scope::signature,
+                    ))
+            .load::<ReadScope>(connection)?;
 
         for scope in &scopes {
             if !account.verify_record(scope) {
@@ -117,6 +159,25 @@ impl ReadScope {
         diesel::delete(read_grant_scope::table.filter(read_grant_scope::id.eq(self.id)))
             .execute(connection)?;
         Ok(())
+    }
+
+    pub fn load_id(
+        id: i32,
+        connection: &MyConnection,
+    ) -> CommonResult<ReadScope> {
+        Ok(read_grant_scope::table
+            .inner_join(application::table)
+            .filter(read_grant_scope::id.eq(id))
+            .select((
+                    read_grant_scope::id,
+                    read_grant_scope::application_id,
+                    application::code,
+                    read_grant_scope::code,
+                    read_grant_scope::display_name,
+                    read_grant_scope::description,
+                    read_grant_scope::signature,
+                    ))
+            .get_result(connection)?)
     }
 }
 
@@ -163,9 +224,12 @@ impl Signed for ReadScope {
 
 impl NewReadScope {
     pub fn save(self, connection: &MyConnection) -> CommonResult<ReadScope> {
-        Ok(diesel::insert_into(read_grant_scope::table)
-            .values(self)
-            .get_result(connection)?)
+        let scope_id = diesel::insert_into(read_grant_scope::table)
+            .values(InsertReadScope::from(self))
+            .returning(read_grant_scope::id)
+            .get_result(connection)?;
+
+        Ok(ReadScope::load_id(scope_id, connection)?)
     }
 }
 
