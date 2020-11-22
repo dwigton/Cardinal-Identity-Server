@@ -12,6 +12,7 @@ extern crate diesel;
 
 extern crate base64;
 extern crate clear_on_drop;
+extern crate anyhow;
 
 mod cli;
 mod database;
@@ -21,8 +22,10 @@ mod model;
 mod error;
 
 use clap::App;
+use clap::ArgMatches;
+use anyhow::{bail, Result};
 
-fn main() {
+fn main() -> Result<()> {
     let app = App::new("Identity Vault")
         .version("0.0.1")
         .author("Daniel W. <daniel@stonecottageweb.com>")
@@ -38,11 +41,15 @@ fn main() {
         //.subcommand(SubCommand::with_name("run").about("Runs the identity server."))
         ;
 
-    let matches = app.get_matches();
+    let matches: ArgMatches = app.get_matches();
 
-    if matches.is_present("init") {
-        cli::init::run();
-    }
+    let status: Result<()> = match matches.subcommand() {
+        ("init", _)              => cli::init::run(),
+        ("account", Some(m))     => cli::account::run(m),
+        ("application", Some(m)) => cli::application::run(m),
+        ("client", Some(m))      => cli::client::run(m),
+        (c, _)                   => bail!("Subcommand {} not recognized.", c),
+    };
 
     /*
     if matches.is_present("run") {
@@ -50,39 +57,5 @@ fn main() {
     }
     */
 
-    /*
-    if let Some(matches) = matches.subcommand_matches("export") {
-        cli::export::run(matches);
-    }
-    */
-
-    /*
-    if let Some(matches) = matches.subcommand_matches("import") {
-        cli::import::run(matches);
-    }
-    */
-
-    if let Some(matches) = matches.subcommand_matches("account") {
-        cli::account::run(matches);
-    }
-
-    if let Some(matches) = matches.subcommand_matches("application") {
-        cli::application::run(matches);
-    }
-
-    if let Some(matches) = matches.subcommand_matches("client") {
-        cli::client::run(matches);
-    }
-
-    /*
-    if let Some(matches) = matches.subcommand_matches("scope") {
-        cli::scope::run(matches);
-    }
-    */
-
-    /*
-    if let Some(matches) = matches.subcommand_matches("sign") {
-        cli::sign::run(matches);
-    }
-    */
+    status
 }

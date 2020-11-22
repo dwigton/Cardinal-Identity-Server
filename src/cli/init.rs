@@ -7,12 +7,13 @@ use encryption::random_int_256;
 use model::account::Account;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use anyhow::{Context, Result};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("init").about("Initializes application before use.")
 }
 
-pub fn run() {
+pub fn run() -> Result<()> {
     println!("Enter the postgres database url. The format should be \"postgres://<username>:<password>@<host>/<database>\"");
     let mut database_url: String;
 
@@ -36,12 +37,11 @@ pub fn run() {
 
     let account = Account::new(&admin_user_name, &password, &export_key, true);
 
-    let connection = establish_connection().unwrap();
+    let connection = establish_connection()?;
 
-    match account.save(&connection) {
-        Ok(_) => (),
-        Err(e) => println!("Could not save new account. Error \"{}\"", e),
-    }
+    account.save(&connection).context("Could not save new account")?;
+
+    Ok(())
 }
 
 fn set_env_variable(variable: &str, value: &str) {

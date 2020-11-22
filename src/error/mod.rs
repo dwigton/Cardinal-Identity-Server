@@ -1,7 +1,6 @@
 use diesel;
 use encryption;
 use error::CommonError::*;
-use std::error;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
@@ -33,12 +32,12 @@ impl fmt::Display for CommonError {
     }
 }
 
-impl error::Error for CommonError {
+impl std::error::Error for CommonError {
     fn description(&self) -> &str {
         "General Errors"
     }
 
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn cause(&self) -> Option<&dyn std::error::Error> {
         None
     }
 }

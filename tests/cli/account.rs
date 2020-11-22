@@ -1,7 +1,7 @@
 extern crate assert_cmd;
 extern crate predicates;
-use assert_cmd::prelude::*;
-use predicates::prelude::*;
+use cli::account::assert_cmd::prelude::*;
+use cli::account::predicates::prelude::*;
 use std::process::Command;
 use std::panic;
 
@@ -41,10 +41,10 @@ fn test_change_account_password() {
         Err(_) => {},
     }
 
-    delete_account("test_user2", "test_password");
+    delete_account("test_user2", "new_password");
 }
 
-fn create_account(name: &str, password: &str) {
+pub fn create_account(name: &str, password: &str) {
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
     cmd.arg("account")
@@ -59,7 +59,7 @@ fn create_account(name: &str, password: &str) {
     cmd.assert().success();
 }
 
-fn delete_account(name: &str, password: &str) {
+pub fn delete_account(name: &str, password: &str) {
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
     cmd.arg("account")

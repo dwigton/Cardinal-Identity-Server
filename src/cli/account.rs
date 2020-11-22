@@ -1,7 +1,9 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_new_password, get_password};
 use database::establish_connection;
+use database::MyConnection;
 use model::account::Account;
+use anyhow::{bail, Context, Result};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("account")
@@ -91,96 +93,110 @@ pub fn init() -> App<'static, 'static> {
         )
 }
 
-pub fn run(matches: &ArgMatches) {
-    let connection = establish_connection().unwrap();
+pub fn run(matches: &ArgMatches) -> Result<()> {
+    let connection = establish_connection()?;
 
-    // Create new account.
-    if let Some(matches) = matches.subcommand_matches("add") {
-        let username = match matches.value_of("username") {
-            Some(u) => u.to_owned(),
-            None => get_input("New account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_new_password("New account password: ", "Reenter password: "),
-        };
-
-        let export_key = match matches.value_of("exportkey") {
-            Some(p) => p.to_owned(),
-            None => get_new_password("New account export key: ", "Reenter export key: "),
-        };
-
-        let account = Account::new(&username, &password, &export_key, false);
-
-        match account.save(&connection) {
-            Ok(_) => println!("New account \"{}\" created successfully.", username),
-            Err(e) => eprintln!("Could not save new account. Error \"{}\"", e),
-        }
+    match matches.subcommand() {
+        ("add", Some(m))     => add(m, &connection),
+        ("chngpwd", Some(m)) => change_password(m, &connection),
+        ("delete", Some(m))  => delete(m, &connection),
+        ("list", _)          => list(&connection),
+        (c, _)               => bail!("Subcommand {} not recognized.", c),
     }
+}
 
-    // Change account password.
-    if let Some(matches) = matches.subcommand_matches("chngpwd") {
-        let username = match matches.value_of("username") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Current password: "),
-        };
-
-        let new_password = match matches.value_of("newpassword") {
-            Some(p) => p.to_owned(),
-            None => get_new_password("New account password: ", "Reenter new password: "),
-        };
-
-        match Account::load_unlocked(&username, &password, &connection) {
-            Ok(unlocked_account) => {
-                match unlocked_account.change_password(&new_password, &connection) {
-                    Ok(_) => println!("Password successfully changed for account {}.", &username),
-                    Err(e) => eprintln!("Could not change password. Error \"{}\"", e),
-                }
-            }
-            Err(_) => eprintln!("username and password not recognized."),
-        }
-    }
-
-    // Delete a account.
-    if let Some(matches) = matches.subcommand_matches("delete") {
-        let username = match matches.value_of("username") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Password: "),
-        };
-
-        if matches.is_present("force")
-            || get_input(&format!(
-                "Are you sure you want to delete {}? [y/n]: ",
-                &username
-            )) == "y"
-        {
-            match Account::load_unlocked(&username, &password, &connection) {
-                Ok(account) => match account.delete(&connection) {
-                    Ok(_) => println!("Account {} deleted", &username),
-                    Err(e) => eprintln!("Could not delete {}. Error \"{}\"", &username, e),
-                },
-                Err(_) => eprintln!("Could not find account {}.", &username),
-            }
-        }
-    }
-
-    // list all accounts
-    if let Some(_) = matches.subcommand_matches("list") {
-        let records = Account::load_all(&connection).expect("Error loading account accounts.");
+fn list(connection: &MyConnection) -> Result<()> {
+        let records = Account::load_all(&connection)
+            .context("Error loading account accounts.")?;
 
         for i in 0..records.len() {
             println!("{}", records[i].name);
         }
+
+        Ok(())
+}
+
+fn delete(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+
+    let username = match matches.value_of("username") {
+        Some(u) => u.to_owned(),
+        None => get_input("Account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_password("Password: "),
+    };
+
+    if !(matches.is_present("force")
+         || get_input(&format!(
+                 "Are you sure you want to delete {}? [y/n]: ",
+                 &username
+                 )) == "y")
+    {
+        bail!("Password reset cancelled.");
     }
+
+    Account::load_unlocked(&username, &password, &connection)
+        .context("No such username and password.")?
+        .delete(&connection)
+        .context(format!("Could not delete {}.", &username))?;
+
+    println!("Account {} deleted", &username);
+
+    Ok(())
+}
+
+fn change_password(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+
+    let username = match matches.value_of("username") {
+        Some(u) => u.to_owned(),
+        None => get_input("Account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_password("Current password: "),
+    };
+
+    let new_password = match matches.value_of("newpassword") {
+        Some(p) => p.to_owned(),
+        None => get_new_password("New account password: ", "Reenter new password: "),
+    };
+
+    let unlocked_account = Account::load_unlocked(&username, &password, &connection)
+        .context("Username and password not recognized.")?;
+
+    unlocked_account.change_password(&new_password, &connection)
+        .context("Could not change password.")?;
+
+    println!("Password successfully changed for account {}.", &username);
+    
+    Ok(())
+}
+
+fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+
+    let username = match matches.value_of("username") {
+        Some(u) => u.to_owned(),
+        None => get_input("New account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_new_password("New account password: ", "Reenter password: "),
+    };
+
+    let export_key = match matches.value_of("exportkey") {
+        Some(p) => p.to_owned(),
+        None => get_new_password("New account export key: ", "Reenter export key: "),
+    };
+
+    let account = Account::new(&username, &password, &export_key, false);
+
+    account.save(&connection)?;
+
+    println!("New account \"{}\" created successfully.", username);
+    
+    Ok(())
 }

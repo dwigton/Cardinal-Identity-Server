@@ -1,10 +1,12 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use cli::{get_input, get_password};
 use database::establish_connection;
+use database::MyConnection;
 use model::account::Account;
 use model::application::Application;
 use model::write_scope::WriteScope;
 use model::read_scope::ReadScope;
+use anyhow::{bail, Context, Result};
 
 pub fn init() -> App<'static, 'static> {
     SubCommand::with_name("application")
@@ -145,188 +147,201 @@ pub fn init() -> App<'static, 'static> {
         )
 }
 
-pub fn run(matches: &ArgMatches) {
-    let connection = establish_connection().unwrap();
+pub fn run(matches: &ArgMatches) -> Result<()> {
+    let connection = establish_connection()?;
 
-    // Create new application.
-    if let Some(matches) = matches.subcommand_matches("add") {
-        let account_name = match matches.value_of("account_name") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Account password: "),
-        };
-
-        let application_code = match matches.value_of("code") {
-            Some(code) => code.to_owned(),
-            None => get_input("Application code: "),
-        };
-
-        let description = match matches.value_of("description") {
-            Some(name) => name.to_owned(),
-            None => get_input("Description: "),
-        };
-
-        let server_url = match matches.value_of("url") {
-            Some(url) => url.to_owned(),
-            None => get_input("Application server url: "),
-        };
-
-        let account = Account::load_unlocked(&account_name, &password, &connection)
-            .expect("Account and password not recognized.");
-
-        let application = Application::new(&application_code, &description, &server_url, &account);
-
-        match application.save(&connection) {
-            Ok(_) => println!("Application \"{}\" added successfully.", application_code),
-            Err(e) => eprintln!("Could not save application. Error \"{}\"", e),
-        }
+    match matches.subcommand() {
+        ("add", Some(m))     => add(m, &connection),
+        ("scope", Some(m))   => scope(m, &connection),
+        ("delete", Some(m))  => delete(m, &connection),
+        ("list", _)          => list(&connection),
+        (c, _)               => bail!("Subcommand {} not recognized.", c),
     }
+}
 
-    // Delete application.
-    if let Some(matches) = matches.subcommand_matches("delete") {
-        let account_name = match matches.value_of("account_name") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
+fn list(connection: &MyConnection) -> Result<()> {
+    let records = Application::load_all(&connection)
+        .context("Error loading all applications.")?;
 
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Account password: "),
-        };
-
-        let application_code = match matches.value_of("code") {
-            Some(code) => code.to_owned(),
-            None => get_input("Application code: "),
-        };
-
-        if matches.is_present("force")
-            || get_input(&format!(
-                "Are you sure you want to delete {}? [y/n]: ",
-                &application_code
-            )) == "y"
-        {
-            match Account::load_unlocked(&account_name, &password, &connection) {
-                Ok(account) => {
-                    match Application::load_by_code(&application_code, &account, &connection) {
-                        Ok(app) => match app.delete(&connection) {
-                            Ok(_) => println!("{} application deleted", &application_code),
-                            Err(e) => {
-                                eprintln!("Could not delete {}. Error \"{}\"", &application_code, e)
-                            }
-                        },
-                        Err(e) => eprintln!(
-                            "Could not locate record {}. Error \"{}\"",
-                            &application_code, e
-                        ),
-                    };
-                }
-                Err(_) => eprintln!("Could not find account {}.", &account_name),
-            }
-        }
-    }
-
-    // add remove application scopes
-    if let Some(matches) = matches.subcommand_matches("scope") {
-        let account_name = match matches.value_of("account_name") {
-            Some(u) => u.to_owned(),
-            None => get_input("Account name: "),
-        };
-
-        let password = match matches.value_of("password") {
-            Some(p) => p.to_owned(),
-            None => get_password("Password: "),
-        };
-
-        let application_code = match matches.value_of("code") {
-            Some(code) => code.to_owned(),
-            None => get_input("Application code: "),
-        };
-
-        let write_scope_codes = matches.values_of_lossy("write");
-        let read_scope_codes = matches.values_of_lossy("read");
-
-        let account = Account::load_unlocked(&account_name, &password, &connection)
-            .expect("Could not load account");
-
-        let application = Application::load_by_code(&application_code, &account, &connection)
-            .expect("Could not load application");
-
-        if matches.is_present("delete") {
-            // Delete named scopes
-            if matches.is_present("force")
-                || get_input(&format!(
-                    "Are you sure you want to delete {}? [y/n]: ",
-                    &application_code
-                )) == "y"
-            {
-                // delete write_scopes
-                if let Some(scope_codes) = write_scope_codes {
-                    let db_scopes = WriteScope::load_codes(scope_codes, &application, &connection)
-                        .expect("Could not load scopes.");
-                    for mut scope in db_scopes {
-                        scope.delete(&connection).expect("Could Not delete scope");
-                    }
-                }
-                // delete read_scopes
-                if let Some(scope_codes) = read_scope_codes {
-                    let db_scopes =
-                        ReadScope::load_codes(scope_codes, &account, &application, &connection)
-                            .expect("Could not load scopes.");
-                    for mut scope in db_scopes {
-                        scope.delete(&connection).expect("Could Not delete scope");
-                    }
-                }
-            }
-        } else {
-            // create named write scopes
-            if let Some(scope_codes) = write_scope_codes {
-                for scope_code in scope_codes {
-                    let scope = WriteScope::new(&scope_code, &application, &account);
-                    match scope.save(&connection) {
-                        Ok(s) => println!(
-                            "Write Scope {} created for {} application",
-                            s.code, s.application_code
-                        ),
-                        Err(_) => eprintln!(
-                            "Write Scope {} creation FAILED for {} application",
-                            scope_code, application.code
-                        ),
-                    };
-                }
-            }
-
-            // Create read scopes
-            if let Some(scope_codes) = read_scope_codes {
-                for scope_code in scope_codes {
-                    let scope = WriteScope::new(&scope_code, &application, &account);
-                    match scope.save(&connection) {
-                        Ok(s) => println!(
-                            "Read Scope {} created for {} application",
-                            s.code, s.application_code
-                        ),
-                        Err(_) => eprintln!(
-                            "Read Scope {} creation FAILED for {} application",
-                            scope_code, application.code
-                        ),
-                    };
-                }
-            }
-        }
-    }
-
-    // list all applications
-    if let Some(_) = matches.subcommand_matches("list") {
-        let records = Application::load_all(&connection).expect("Error loading all applications.");
-
-        for i in 0..records.len() {
-            println!(
-                "{} - {}: {}",
-                records[i].account_id, records[i].code, records[i].description
+    for i in 0..records.len() {
+        println!(
+            "{} - {}: {}",
+            records[i].account_id, records[i].code, records[i].description
             );
-        }
     }
+
+    Ok(())
+}
+
+fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+
+    let account_name = match matches.value_of("account_name") {
+        Some(u) => u.to_owned(),
+        None => get_input("Account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_password("Password: "),
+    };
+
+    let application_code = match matches.value_of("code") {
+        Some(code) => code.to_owned(),
+        None => get_input("Application code: "),
+    };
+
+    let write_scope_codes = matches.values_of_lossy("write");
+    let read_scope_codes = matches.values_of_lossy("read");
+
+    let account = Account::load_unlocked(&account_name, &password, &connection)
+        .expect("Could not load account");
+
+    let application = Application::load_by_code(&application_code, &account, &connection)
+        .expect("Could not load application");
+
+    if matches.is_present("delete") {
+        // Delete named scopes
+        if !(matches.is_present("force")
+             || get_input(&format!(
+                     "Are you sure you want to delete {}? [y/n]: ",
+                     &application_code
+                     )) == "y")
+        {
+            bail!("Scope delete cancelled.");
+        }
+
+        // delete write_scopes
+        if let Some(scope_codes) = write_scope_codes {
+            let db_scopes = WriteScope::load_codes(scope_codes, &application, &connection)
+                .context("Could not load scopes.")?;
+            for mut scope in db_scopes {
+                scope.delete(&connection).context(format!("Could not delete scope {}", scope.code))?;
+                println!("Write scope {} deleted successfully.", scope.code);
+            }
+        }
+
+        // delete read_scopes
+        if let Some(scope_codes) = read_scope_codes {
+            let db_scopes = ReadScope::load_codes(scope_codes, &account, &application, &connection)
+                .context("Could not load scopes.")?;
+            for mut scope in db_scopes {
+                scope.delete(&connection).context(format!("Could not delete scope {}", scope.code))?;
+                println!("Read scope {} deleted successfully.", scope.code);
+            }
+        }
+    } else {
+        // create named write scopes
+        if let Some(scope_codes) = write_scope_codes {
+            for scope_code in scope_codes {
+                let scope = WriteScope::new(&scope_code, &application, &account);
+                match scope.save(&connection) {
+                    Ok(s) => println!(
+                        "Write Scope {} created for {} application",
+                        s.code, s.application_code
+                        ),
+                    Err(_) => bail!(
+                        "Write Scope {} creation FAILED for {} application",
+                        scope_code, application.code
+                        ),
+                };
+            }
+        }
+
+        // Create read scopes
+        if let Some(scope_codes) = read_scope_codes {
+            for scope_code in scope_codes {
+                let scope = WriteScope::new(&scope_code, &application, &account);
+                match scope.save(&connection) {
+                    Ok(s) => println!(
+                        "Read Scope {} created for {} application",
+                        s.code, s.application_code
+                        ),
+                    Err(_) => bail!(
+                        "Read Scope {} creation FAILED for {} application",
+                        scope_code, application.code
+                        ),
+                };
+            }
+        }
+
+    }
+
+    Ok(())
+}
+
+fn delete(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+    let account_name = match matches.value_of("account_name") {
+        Some(u) => u.to_owned(),
+        None => get_input("Account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_password("Account password: "),
+    };
+
+    let application_code = match matches.value_of("code") {
+        Some(code) => code.to_owned(),
+        None => get_input("Application code: "),
+    };
+
+    if !(matches.is_present("force")
+         || get_input(&format!(
+                 "Are you sure you want to delete {}? [y/n]: ",
+                 &application_code
+                 )) == "y")
+    {
+        bail!("Password reset cancelled.");
+    }
+
+    let account = Account::load_unlocked(&account_name, &password, &connection)
+        .context("No such username and password.")?;
+
+    Application::load_by_code(&application_code, &account, &connection)
+        .context(format!("Could not locate record {}.", &application_code))?
+        .delete(&connection)
+        .context(format!("Could not delete {}.", &application_code))?;
+
+    println!("Application {} deleted successfully.", &application_code);
+
+    Ok(())
+}
+
+fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
+    let account_name = match matches.value_of("account_name") {
+        Some(u) => u.to_owned(),
+        None => get_input("Account name: "),
+    };
+
+    let password = match matches.value_of("password") {
+        Some(p) => p.to_owned(),
+        None => get_password("Account password: "),
+    };
+
+    let application_code = match matches.value_of("code") {
+        Some(code) => code.to_owned(),
+        None => get_input("Application code: "),
+    };
+
+    let description = match matches.value_of("description") {
+        Some(name) => name.to_owned(),
+        None => get_input("Description: "),
+    };
+
+    let server_url = match matches.value_of("url") {
+        Some(url) => url.to_owned(),
+        None => get_input("Application server url: "),
+    };
+
+    let account = Account::load_unlocked(&account_name, &password, &connection)
+        .expect("Account and password not recognized.");
+
+    let application = Application::new(&application_code, &description, &server_url, &account);
+
+    match application.save(&connection) {
+        Ok(_) => println!("Application \"{}\" added successfully.", application_code),
+        Err(e) => bail!("Could not save application."),
+    }
+
+    Ok(())
 }
