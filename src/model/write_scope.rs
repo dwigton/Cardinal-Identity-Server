@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use encryption::byte_encryption::encrypt_32;
 use encryption::exchange_key::EphemeralKey;
 use encryption::signing_key::SigningKey;
-use encryption::{random_int_256, to_256, to_512};
+use encryption::{random_int_256, as_256, as_512};
 use error::{CommonError, CommonResult};
 use model::account::UnlockedAccount;
 use model::application::Application;
@@ -235,7 +235,7 @@ impl UnlockedWriteScope {
     ) -> CommonResult<()> {
         let ephemeral = EphemeralKey::new();
         let public_key = ephemeral.public_key().to_vec();
-        let encryption_key = ephemeral.key_gen(*to_256(&client.client_id));
+        let encryption_key = ephemeral.key_gen(*as_256(&client.client_id));
         let access_key = account.generate_key(&self.private_key_salt);
         let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
 
@@ -257,14 +257,14 @@ impl Certified for NewWriteScope {
         Certificate {
             data: CertData{
                 signing_key:     self.signing_key,
-                public_key:      *to_256(&self.public_key),
+                public_key:      *as_256(&self.public_key),
                 scope:           Scope::Write{
                    application: self.application_code.clone(),
                    grant: self.code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *to_256(&self.signature),
+            signature: *as_256(&self.signature),
         }
     }
 }
@@ -273,8 +273,8 @@ impl Certifiable<NewWriteScope> for UncertifiedWriteScope {
 
     fn data(&self) -> CertData {
         CertData{
-            signing_key: *to_256(&self.signing_key),
-            public_key: *to_256(&self.public_key.clone()),
+            signing_key: *as_256(&self.signing_key),
+            public_key: *as_256(&self.public_key.clone()),
             scope: Scope::Write{
                 application: self.application_code.clone(),
                 grant: self.code.clone(),
@@ -295,7 +295,7 @@ impl Certifiable<NewWriteScope> for UncertifiedWriteScope {
             private_key_salt: self.private_key_salt.clone(),
             expiration_date: self.expiration_date,
             signature,
-            signing_key: *to_256(&authorizing_key),
+            signing_key: *as_256(&authorizing_key),
         }
     }
 }
@@ -305,15 +305,15 @@ impl Certified for LockedWriteScope {
     fn certificate(&self) -> Certificate {
         Certificate {
             data: CertData{
-                signing_key:     *to_256(&self.signing_key),
-                public_key:      *to_256(&self.public_key),
+                signing_key:     *as_256(&self.signing_key),
+                public_key:      *as_256(&self.public_key),
                 scope:           Scope::Write{
                    application: self.application_code.clone(),
                    grant: self.code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *to_256(&self.signature),
+            signature: *as_256(&self.signature),
         }
     }
 }
@@ -339,8 +339,8 @@ impl LockedWriteScope {
     fn to_unlocked(&self, encryption_key: &[u8; 32]) -> CommonResult<UnlockedWriteScope> {
         let signing_key = SigningKey::from_encrypted(
             &encryption_key,
-            to_256(&self.public_key),
-            to_512(&self.encrypted_private_key),
+            as_256(&self.public_key),
+            as_512(&self.encrypted_private_key),
         )?;
 
         Ok(UnlockedWriteScope {
@@ -360,7 +360,7 @@ impl LockedWriteScope {
     }
 
     pub fn unlock_by_account(&self, account: &UnlockedAccount) -> CommonResult<UnlockedWriteScope> {
-        let encryption_key = account.generate_key(to_256(&self.private_key_salt));
+        let encryption_key = account.generate_key(as_256(&self.private_key_salt));
         self.to_unlocked(&encryption_key)
     }
 
@@ -370,14 +370,14 @@ impl LockedWriteScope {
         authorization: &WriteAuthorization,
     ) -> CommonResult<UnlockedWriteScope> {
         let encryption_key = client.unlock_key(
-            to_256(&authorization.public_key),
-            to_512(&authorization.encrypted_access_key),
+            as_256(&authorization.public_key),
+            as_512(&authorization.encrypted_access_key),
         )?;
 
         let signing_key = SigningKey::from_encrypted(
             &encryption_key,
-            to_256(&self.public_key),
-            to_512(&self.encrypted_private_key),
+            as_256(&self.public_key),
+            as_512(&self.encrypted_private_key),
         )?;
 
         Ok(UnlockedWriteScope {

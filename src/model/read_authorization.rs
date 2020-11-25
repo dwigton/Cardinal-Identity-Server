@@ -7,7 +7,7 @@ use database::MyConnection;
 use diesel::prelude::*;
 use encryption::byte_encryption::encrypt_32;
 use encryption::exchange_key::{EphemeralKey, ExchangeKey};
-use encryption::{hash_by_parts, to_256, to_512, random_int_256};
+use encryption::{hash_by_parts, as_256, as_512, random_int_256};
 use error::CommonResult;
 use model::account::UnlockedAccount;
 use model::{Signed, Signable};
@@ -136,8 +136,8 @@ pub struct UnlockedReadGrantKey {
 impl Certifiable<NewReadGrantKey> for UncertifiedReadGrantKey {
     fn data(&self) -> CertData {
         CertData{
-            signing_key: *to_256(&self.signing_key),
-            public_key: *to_256(&self.public_key),
+            signing_key: *as_256(&self.signing_key),
+            public_key: *as_256(&self.public_key),
             scope: Scope::Write{
                 application: self.application_code.clone(),
                 grant: self.read_grant_code.clone(),
@@ -165,15 +165,15 @@ impl Certified for NewReadGrantKey {
     fn certificate(&self) -> Certificate {
         Certificate {
             data: CertData {
-                signing_key:     *to_256(&self.signing_key),
-                public_key:      *to_256(&self.public_key),
+                signing_key:     *as_256(&self.signing_key),
+                public_key:      *as_256(&self.public_key),
                 scope:           Scope::Read{
                     application: self.application_code.clone(),
                     grant: self.read_grant_code.clone(),
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *to_256(&self.signature),
+            signature: *as_256(&self.signature),
         }
     }
 }
@@ -256,7 +256,7 @@ impl ReadAuthorization {
     pub fn save(&self, connection: &MyConnection) -> CommonResult<()> {
         diesel::insert_into(read_authorization::table)
             .values(self)
-            .execute(connection);
+            .execute(connection)?;
         Ok(())
     }
 }
@@ -307,7 +307,7 @@ impl ReadGrantKey {
     pub fn to_unlocked(&self, account: &UnlockedAccount) -> CommonResult<UnlockedReadGrantKey> {
         let encryption_key = account.generate_key(&self.private_key_salt);
         let exchange_key =
-            ExchangeKey::from_encrypted(&encryption_key, to_512(&self.encrypted_private_key))?;
+            ExchangeKey::from_encrypted(&encryption_key, as_512(&self.encrypted_private_key))?;
 
         Ok(UnlockedReadGrantKey {
             id: self.id,
@@ -331,7 +331,7 @@ impl UnlockedReadGrantKey {
     ) -> CommonResult<()> {
         let ephemeral = EphemeralKey::new();
         let public_key = ephemeral.public_key().to_vec();
-        let encryption_key = ephemeral.key_gen(*to_256(&client.client_id));
+        let encryption_key = ephemeral.key_gen(*as_256(&client.client_id));
         let access_key = account.generate_key(&self.private_key_salt);
         let encrypted_access_key = encrypt_32(&encryption_key, &access_key).to_vec();
 

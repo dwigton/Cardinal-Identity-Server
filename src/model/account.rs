@@ -10,7 +10,7 @@ use encryption::signing_key::SigningKey;
 use encryption::{
     check_password, hash_password, hash_salted_password, pk_bytes, random_int_256, secure_hash,
 };
-use encryption::{decode_32, decode_64, to_512};
+use encryption::{decode_32, decode_64, as_512};
 use error::{CommonError, CommonResult};
 use model::application::Application;
 use model::application::PortableApplication;
@@ -165,12 +165,12 @@ impl LockedAccount {
         }
 
         let master_encryption_key = hash_salted_password(password, &self.master_key_salt);
-        let master_key = decrypt_32(to_512(&self.encrypted_master_key), &master_encryption_key)?;
+        let master_key = decrypt_32(as_512(&self.encrypted_master_key), &master_encryption_key)?;
 
         let signing_key = SigningKey::from_encrypted(
             &master_key,
             &pk_bytes(&self.public_key),
-            &to_512(&self.encrypted_private_key),
+            &as_512(&self.encrypted_private_key),
         )?;
 
         Ok(UnlockedAccount {

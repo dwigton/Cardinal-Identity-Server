@@ -51,7 +51,7 @@ pub fn hash_salted_password(password: &str, salt: &[u8]) -> [u8; 32] {
 
 pub fn check_password(password: &str, hashed_password: &str) -> bool {
     let merged: [u8; 64] = match decode(hashed_password) {
-        Ok(v) if v.len() == 64 => *to_512(v.as_slice()),
+        Ok(v) if v.len() == 64 => *as_512(v.as_slice()),
         _ => return false,
     };
 
@@ -176,7 +176,7 @@ pub fn random_int_256() -> [u8; 32] {
     result
 }
 
-pub fn to_512(input: &[u8]) -> &[u8; 64] {
+pub fn as_512(input: &[u8]) -> &[u8; 64] {
     if input.len() == 64 {
         let ptr = input.as_ptr() as *const [u8; 64];
         // SAFETY: ok because we just checked that the length fits
@@ -186,7 +186,7 @@ pub fn to_512(input: &[u8]) -> &[u8; 64] {
     }
 }
 
-pub fn to_256(input: &[u8]) -> &[u8; 32] {
+pub fn as_256(input: &[u8]) -> &[u8; 32] {
     if input.len() == 32 {
         let ptr = input.as_ptr() as *const [u8; 32];
         // SAFETY: ok because we just checked that the length fits

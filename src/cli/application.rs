@@ -340,7 +340,7 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
 
     match application.save(&connection) {
         Ok(_) => println!("Application \"{}\" added successfully.", application_code),
-        Err(e) => bail!("Could not save application."),
+        Err(_) => bail!("Could not save application."),
     }
 
     Ok(())
