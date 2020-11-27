@@ -224,6 +224,28 @@ impl WriteScope {
                     ))
             .get_result(connection)?)
     }
+
+    pub fn load_all_for_application(application: &Application, connection: &MyConnection) -> CommonResult<Vec<LockedWriteScope>> {
+
+        Ok(write_grant_scope::table
+            .inner_join(application::table.inner_join(account::table))
+            .filter(application::id.eq(application.id))
+            .select((
+                    write_grant_scope::id,
+                    write_grant_scope::application_id,
+                    write_grant_scope::code,
+                    write_grant_scope::display_name,
+                    write_grant_scope::description,
+                    write_grant_scope::public_key,
+                    write_grant_scope::encrypted_private_key,
+                    write_grant_scope::private_key_salt,
+                    write_grant_scope::expiration_date,
+                    write_grant_scope::signature,
+                    application::code,
+                    account::public_key
+                    ))
+            .get_results(connection)?)
+    }
 }
 
 impl UnlockedWriteScope {
@@ -330,7 +352,14 @@ impl NewWriteScope {
 }
 
 impl LockedWriteScope {
-    pub fn delete(&mut self, connection: &MyConnection) -> CommonResult<()> {
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        // First delete write authorizations
+        let authorizations = WriteAuthorization::load_all_for_scope(&self, connection)?;
+
+        for authorization in authorizations {
+            authorization.delete(connection)?;
+        }
+
         diesel::delete(write_grant_scope::table.filter(write_grant_scope::id.eq(self.id)))
             .execute(connection)?;
         Ok(())

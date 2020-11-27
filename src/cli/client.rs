@@ -147,7 +147,7 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
 
     // load application
     let application = Application::load_by_code(&application_code, &account, &connection)
-        .context("Application not found")?;
+        .context(format!("{} application not found", &application_code))?;
 
     // create new client
     let (token, new_client) = Client::new(&account, &application);

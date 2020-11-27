@@ -259,6 +259,28 @@ impl ReadAuthorization {
             .execute(connection)?;
         Ok(())
     }
+
+    pub fn load_all_for_client(client: &Client, connection: &MyConnection) -> CommonResult<Vec<ReadAuthorization>> {
+        Ok(read_authorization::table
+            .filter(read_authorization::client_id.eq(&client.client_id))
+            .get_results(connection)?)
+    }
+
+    pub fn load_all_for_grant(grant: &ReadGrantKey, connection: &MyConnection) -> CommonResult<Vec<ReadAuthorization>> {
+        Ok(read_authorization::table
+            .filter(read_authorization::read_grant_key_id.eq(&grant.id))
+            .get_results(connection)?)
+    }
+
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        diesel::delete(read_authorization::table
+                       .filter(read_authorization::client_id.eq(self.client_id))
+                       .filter(read_authorization::read_grant_key_id.eq(self.read_grant_key_id))
+                       )
+            .execute(connection)?;
+
+        Ok(())
+    }
 }
 
 impl ReadGrantKey {
@@ -304,6 +326,12 @@ impl ReadGrantKey {
         Ok(unlocked_keys)
     }
 
+    pub fn load_all_for_scope(scope: &ReadScope, connection: &MyConnection) -> CommonResult<Vec<ReadGrantKey>> {
+        Ok(read_grant_key::table
+            .filter(read_grant_key::read_grant_scope_id.eq(scope.id))
+            .get_results(connection)?)
+    }
+
     pub fn to_unlocked(&self, account: &UnlockedAccount) -> CommonResult<UnlockedReadGrantKey> {
         let encryption_key = account.generate_key(&self.private_key_salt);
         let exchange_key =
@@ -319,6 +347,19 @@ impl ReadGrantKey {
             signature: self.signature.clone(),
             exchange_key,
         })
+    }
+
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        // Delete dependant authorizations
+        let authorizations = ReadAuthorization::load_all_for_grant(&self, connection)?;
+
+        for authorization in authorizations {
+            authorization.delete(connection)?;
+        }
+
+        diesel::delete(read_grant_key::table.filter(read_grant_key::id.eq(self.id)))
+            .execute(connection)?;
+        Ok(())
     }
 }
 

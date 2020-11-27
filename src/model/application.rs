@@ -5,6 +5,9 @@ use encryption::hash_by_parts;
 use error::{CommonError, CommonResult};
 use model::account::UnlockedAccount;
 use model::{Signable, Signed};
+use model::client::Client;
+use model::write_scope::WriteScope;
+use model::read_scope::ReadScope;
 
 pub struct PortableApplication {
     pub code: String,
@@ -170,6 +173,28 @@ impl Application {
     }
 
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        // Delete all dependent clients
+        let clients = Client::load_all_for_application(&self, connection)?;
+
+        for client in clients {
+            client.delete(connection)?
+        }
+
+        // Delete all dependant write grant scopes
+        let write_scopes = WriteScope::load_all_for_application(&self, connection)?;
+
+        for write_scope in write_scopes {
+            write_scope.delete(connection)?;
+        }
+
+        // Delete all dependant read grant scopes.
+        let read_scopes = ReadScope::load_all_for_application(&self, connection)?;
+
+        for read_scope in read_scopes {
+            read_scope.delete(connection)?;
+        }
+
+
         diesel::delete(application::table.filter(application::id.eq(self.id)))
             .execute(connection)?;
         Ok(())

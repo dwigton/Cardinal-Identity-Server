@@ -1,6 +1,6 @@
 use model::Scope;
 use chrono::NaiveDateTime;
-use encryption::{as_256, hash_by_parts};
+use encryption::{as_256, lpad_to_256, hash_by_parts};
 use model::Certifiable;
 use model::Certified;
 
@@ -28,13 +28,13 @@ impl Certifiable<Certificate> for CertData {
 impl CertData {
     pub fn hash(&self) -> [u8; 32] {
         let time = self.expiration_date.timestamp().to_le_bytes();
-        let date = as_256(&time);
+        let date = lpad_to_256(&time);
 
         hash_by_parts(&[
                       &self.signing_key,
                       &self.public_key,
                       &self.scope.hash(),
-                      date,
+                      &date,
         ])
     }
 }

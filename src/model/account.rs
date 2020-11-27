@@ -8,7 +8,7 @@ use encryption::byte_encryption::{decrypt_32, encrypt_32};
 use encryption::signing_key::verify_signature;
 use encryption::signing_key::SigningKey;
 use encryption::{
-    check_password, hash_password, hash_salted_password, pk_bytes, random_int_256, secure_hash,
+    check_password, hash_password, hash_salted_password, as_256, random_int_256, secure_hash,
 };
 use encryption::{decode_32, decode_64, as_512};
 use error::{CommonError, CommonResult};
@@ -169,7 +169,7 @@ impl LockedAccount {
 
         let signing_key = SigningKey::from_encrypted(
             &master_key,
-            &pk_bytes(&self.public_key),
+            &as_256(&self.public_key),
             &as_512(&self.encrypted_private_key),
         )?;
 
@@ -296,9 +296,11 @@ impl UnlockedAccount {
 
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
         let applications = Application::load_all_for_account(&self, connection)?;
+
         for app in applications {
             app.delete(connection)?;
         }
+
         Account::delete_id(&self.id, connection)
     }
 }

@@ -1,77 +1,121 @@
 extern crate assert_cmd;
 extern crate predicates;
 use cli::application::assert_cmd::prelude::*;
-use cli::application::predicates::prelude::*;
 use std::process::Command;
-use std::panic;
 use cli::account::{create_account, delete_account};
 
 #[test]
 fn test_create_application() {
     create_account("application_user1", "test_password");
-    create_application("spout", "application_user1", "test_password");
-    delete_application("spout", "application_user1", "test_password");
+    create_application("application_user1", "test_password", "spout1", "Spout", "https://spout.example.com");
+    delete_application("application_user1", "test_password", "spout1");
     delete_account("application_user1", "test_password");
 }
 
 #[test]
-fn test_change_account_password() {
-
+fn test_add_remove_scopes() {
     create_account("application_user2", "test_password");
+    create_application("application_user2", "test_password", "spout1", "Spout", "https://spout.example.com");
 
-    let mut cmd = Command::cargo_bin("idvault").unwrap();
+    add_scopes(
+        "application_user2",
+        "test_password",
+        "spout1",
+        &["crap", "regurgitate", "admire", "flush"],
+        &["smell"]
+        );
 
-    // Change the password
-    cmd.arg("account")
-        .arg("chngpwd")
-        .arg("-u")
-        .arg("application_user2")
-        .arg("-p")
-        .arg("test_password")
-        .arg("-r")
-        .arg("new_password");
+    delete_scopes(
+        "application_user2",
+        "test_password",
+        "spout1",
+        &["crap", "regurgitate", "admire", "flush"],
+        &["smell"]
+        );
 
-    cmd.assert().success();
-
-    // Delete with old password, should fail
-
-    let result = panic::catch_unwind(|| {
-        delete_account("application_user2", "test_password");
-    });
-
-    match result {
-        Ok(_) => panic!("No error when using old password."),
-        Err(_) => {},
-    }
-
-    delete_account("application_user2", "new_password");
+    delete_application("application_user2", "test_password", "spout1");
+    delete_account("application_user2", "test_password");
 }
 
-fn create_application(code: &str, name: &str, password: &str) {
+pub fn create_application(account: &str, password: &str, code: &str, description: &str, url: &str) {
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
-    cmd.arg("account")
+    cmd.arg("application")
         .arg("add")
         .arg("-u")
-        .arg(name)
+        .arg(account)
         .arg("-p")
         .arg(password)
-        .arg("-x")
-        .arg("test_export_key");
+        .arg("-c")
+        .arg(code)
+        .arg("-d")
+        .arg(description)
+        .arg("--url")
+        .arg(url);
 
     cmd.assert().success();
 }
 
-fn delete_application(code: &str, name: &str, password: &str) {
+pub fn delete_application(account: &str, password: &str, code: &str) {
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
-    cmd.arg("account")
+    cmd.arg("application")
         .arg("delete")
         .arg("-f")
+        .arg("-c")
+        .arg(code)
         .arg("-u")
-        .arg(name)
+        .arg(account)
         .arg("-p")
         .arg(password);
+
+    cmd.assert().success();
+}
+
+pub fn add_scopes(account: &str, password: &str, application_code: &str, write_scopes: &[&str], read_scopes: &[&str]) {
+    let mut cmd = Command::cargo_bin("idvault").unwrap();
+
+    cmd.arg("application")
+        .arg("scope")
+        .arg("-u")
+        .arg(account)
+        .arg("-p")
+        .arg(password)
+        .arg("-c")
+        .arg(application_code);
+
+    for write_scope in write_scopes {
+        cmd.arg("-w").arg(write_scope);
+    }
+
+    for read_scope in read_scopes {
+        cmd.arg("-r").arg(read_scope);
+    }
+
+    cmd.assert().success();
+}
+
+pub fn delete_scopes(account: &str, password: &str, application_code: &str, write_scopes: &[&str], read_scopes: &[&str]) {
+    let mut cmd = Command::cargo_bin("idvault").unwrap();
+
+    cmd.arg("application")
+        .arg("scope")
+        .arg("-u")
+        .arg(account)
+        .arg("-p")
+        .arg(password)
+        .arg("-c")
+        .arg(application_code)
+        .arg("-d")
+        .arg("-f");
+
+    for write_scope in write_scopes {
+        cmd.arg("-w").arg(write_scope);
+    }
+
+    for read_scope in read_scopes {
+        cmd.arg("-r").arg(read_scope);
+    }
 
     cmd.assert().success();
 }

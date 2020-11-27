@@ -214,9 +214,10 @@ fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         if let Some(scope_codes) = write_scope_codes {
             let db_scopes = WriteScope::load_codes(scope_codes, &application, &connection)
                 .context("Could not load scopes.")?;
-            for mut scope in db_scopes {
-                scope.delete(&connection).context(format!("Could not delete scope {}", scope.code))?;
-                println!("Write scope {} deleted successfully.", scope.code);
+            for scope in db_scopes {
+                let scope_code = scope.code.clone();
+                scope.delete(&connection).context(format!("Could not delete scope {}", scope_code))?;
+                println!("Write scope {} deleted successfully.", scope_code);
             }
         }
 
@@ -224,9 +225,10 @@ fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         if let Some(scope_codes) = read_scope_codes {
             let db_scopes = ReadScope::load_codes(scope_codes, &account, &application, &connection)
                 .context("Could not load scopes.")?;
-            for mut scope in db_scopes {
-                scope.delete(&connection).context(format!("Could not delete scope {}", scope.code))?;
-                println!("Read scope {} deleted successfully.", scope.code);
+            for scope in db_scopes {
+                let scope_code = scope.code.clone();
+                scope.delete(&connection).context(format!("Could not delete scope {}", scope_code))?;
+                println!("Read scope {} deleted successfully.", scope_code);
             }
         }
     } else {

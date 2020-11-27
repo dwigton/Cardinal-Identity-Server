@@ -3,6 +3,8 @@ use database::MyConnection;
 use diesel::prelude::*;
 use error::CommonResult;
 use model::{Signable, Signed};
+use model::client::Client;
+use model::write_scope::LockedWriteScope;
 use encryption::hash_by_parts;
 
 
@@ -88,5 +90,29 @@ impl NewWriteAuthorization {
         Ok(diesel::insert_into(write_authorization::table)
             .values(self)
             .get_result(connection)?)
+    }
+}
+
+impl WriteAuthorization {
+    pub fn load_all_for_client(client: &Client, connection: &MyConnection) -> CommonResult<Vec<WriteAuthorization>> {
+        Ok(write_authorization::table
+            .filter(write_authorization::client_id.eq(&client.client_id))
+            .get_results(connection)?)
+    }
+
+    pub fn load_all_for_scope(scope: &LockedWriteScope, connection: &MyConnection) -> CommonResult<Vec<WriteAuthorization>> {
+        Ok(write_authorization::table
+            .filter(write_authorization::write_grant_scope_id.eq(&scope.id))
+            .get_results(connection)?)
+    }
+
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        diesel::delete(write_authorization::table
+                       .filter(write_authorization::client_id.eq(self.client_id))
+                       .filter(write_authorization::write_grant_scope_id.eq(self.write_grant_scope_id))
+                       )
+            .execute(connection)?;
+
+        Ok(())
     }
 }

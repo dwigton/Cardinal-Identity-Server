@@ -9,6 +9,8 @@ use error::CommonResult;
 use model::account::UnlockedAccount;
 use model::application::Application;
 use model::{Signable, Signed};
+use model::read_authorization::ReadAuthorization;
+use model::write_authorization::WriteAuthorization;
 use std::convert::From;
 
 pub struct UnsignedClient {
@@ -144,6 +146,44 @@ impl Client {
                     client::signature
                     ))
             .get_result(connection)?)
+    }
+
+    pub fn load_all_for_application(
+        application: &Application,
+        connection: &MyConnection,
+    ) -> CommonResult<Vec<Client>> {
+        Ok(client::table
+            .inner_join(application::table)
+            .filter(client::application_id.eq(application.id))
+            .select((
+                    client::client_id,
+                    client::application_id,
+                    application::code,
+                    client::signature
+                    ))
+            .get_results(connection)?)
+    }
+
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        // First delete all read authorizations pointing to this client.
+        let read_auths = ReadAuthorization::load_all_for_client(&self, connection)?;
+
+        for read_auth in read_auths {
+            read_auth.delete(connection)?;
+        }
+
+        // Delete all write authorizations pointing to this client.
+        let write_auths = WriteAuthorization::load_all_for_client(&self, connection)?;
+
+        for write_auth in write_auths {
+            write_auth.delete(connection)?;
+        }
+
+        // Finally delete the client.
+        diesel::delete(client::table.filter(client::client_id.eq(self.client_id)))
+            .execute(connection)?;
+
+        Ok(())
     }
 }
 

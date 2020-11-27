@@ -136,6 +136,23 @@ impl ReadScope {
         Ok(scopes)
     }
 
+    pub fn load_all_for_application(application: &Application, connection: &MyConnection) -> CommonResult<Vec<ReadScope>> {
+
+        Ok(read_grant_scope::table
+            .inner_join(application::table)
+            .filter(read_grant_scope::application_id.eq(application.id))
+            .select((
+                    read_grant_scope::id,
+                    read_grant_scope::application_id,
+                    application::code,
+                    read_grant_scope::code,
+                    read_grant_scope::display_name,
+                    read_grant_scope::description,
+                    read_grant_scope::signature,
+                    ))
+            .load::<ReadScope>(connection)?)
+    }
+
     pub fn to_unlocked(
         &self,
         account: &UnlockedAccount,
@@ -155,7 +172,15 @@ impl ReadScope {
         })
     }
 
-    pub fn delete(&mut self, connection: &MyConnection) -> CommonResult<()> {
+    pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
+        //delete dependant scope keys
+        
+        let keys = ReadGrantKey::load_all_for_scope(&self, connection)?;
+
+        for key in keys {
+            key.delete(connection)?;
+        }
+
         diesel::delete(read_grant_scope::table.filter(read_grant_scope::id.eq(self.id)))
             .execute(connection)?;
         Ok(())

@@ -9,10 +9,6 @@ pub mod byte_encryption;
 pub mod exchange_key;
 pub mod signing_key;
 
-//pub use encryption::ed25519_compact::PublicKey::BYTES as PUBLIC_KEY_LENGTH;
-// Maybe needt to set to 32 directly?
-//pub use encryption::ed25519_compact::PrivateKey::BYTES as SECRET_KEY_LENGTH;
-
 use base64::{decode, encode};
 pub use encryption::argon2rs::Argon2;
 pub use encryption::argon2rs::Variant::Argon2i;
@@ -21,7 +17,6 @@ pub use encryption::rand::Rng;
 pub use encryption::sha2::{Digest, Sha512Trunc256};
 pub use encryption::x25519_dalek::PublicKey as XPublicKey;
 use error::CommonResult;
-use std::cmp;
 use std::convert::TryInto;
 
 pub const PUBLIC_KEY_LENGTH: usize = 32;
@@ -119,40 +114,6 @@ pub fn hash_by_parts(data: &[&[u8]]) -> [u8; 32] {
     hasher.result().into()
 }
 
-pub fn pk_bytes(data: &[u8]) -> [u8; PUBLIC_KEY_LENGTH] {
-    if data.len() > PUBLIC_KEY_LENGTH {
-        panic!(
-            "Can't convert {} bytes to {} bytes without loss of data!",
-            data.len(),
-            PUBLIC_KEY_LENGTH
-        );
-    }
-
-    let mut result = [0; PUBLIC_KEY_LENGTH];
-
-    for i in 0..cmp::min(result.len(), data.len()) {
-        result[i] = data[i];
-    }
-    result
-}
-
-pub fn sk_bytes(data: &[u8]) -> [u8; SECRET_KEY_LENGTH] {
-    if data.len() > SECRET_KEY_LENGTH {
-        panic!(
-            "Can't convert {} bytes to {} bytes without loss of data!",
-            data.len(),
-            SECRET_KEY_LENGTH
-        );
-    }
-
-    let mut result = [0; SECRET_KEY_LENGTH];
-
-    for i in 0..cmp::min(result.len(), data.len()) {
-        result[i] = data[i];
-    }
-    result
-}
-
 pub fn decode_64(input: &str) -> CommonResult<[u8; 64]> {
     let vec_ouput = decode(input)?;
     let mut output: [u8; 64] = [0u8; 64];
@@ -196,14 +157,56 @@ pub fn as_256(input: &[u8]) -> &[u8; 32] {
     }
 }
 
+pub fn lpad_to_256(input: &[u8]) -> [u8; 32] {
+    if input.len() == 32 {
+        let ptr = input.as_ptr() as *const [u8; 32];
+        // SAFETY: ok because we just checked that the length fits
+        unsafe { *ptr }
+    } else if input.len() < 32 {
+        let mut result = [0u8; 32];
+
+        for i in 0..input.len() {
+            result[32 - input.len() + i] = input[i];
+        }
+
+        return result;
+    } else {
+        panic!("Array length over 32 bytes");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn left_pad_32byte_array() {
+        let num: u64 = 999999999;
+        let array_8: [u8; 8] = num.to_be_bytes();
+        let array_32: [u8; 32] = lpad_to_256(&array_8);
+
+        for i in 0..24 {
+            assert_eq!(array_32[i], 0u8);
+        }
+
+        for i in 24..32 {
+            assert_eq!(array_32[i], array_8[i - 24]);
+        }
+
+        let input_32: &[u8] = &[7u8; 32];
+
+        let array_32: [u8; 32] = lpad_to_256(input_32);
+
+        for i in 0..32 {
+            assert_eq!(input_32[i], array_32[i]);
+        }
+
+    }
+
+    #[test]
     fn encrypt_decrypt() {
         // get some data to encrypt not nicely aligned.
-        let mut data = b"Pardon me thou bleeding piece of earth that I am meek and gentle with these butchers.";
+        let data = b"Pardon me thou bleeding piece of earth that I am meek and gentle with these butchers.";
 
         // get an encryption key
         let mut key = [0u8; 32];
