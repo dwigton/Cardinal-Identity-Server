@@ -286,7 +286,7 @@ impl Certified for NewWriteScope {
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *as_256(&self.signature),
+            signature: *as_512(&self.signature),
         }
     }
 }
@@ -335,7 +335,7 @@ impl Certified for LockedWriteScope {
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *as_256(&self.signature),
+            signature: *as_512(&self.signature),
         }
     }
 }

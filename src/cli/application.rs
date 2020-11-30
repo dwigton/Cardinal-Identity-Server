@@ -6,6 +6,7 @@ use model::account::Account;
 use model::application::Application;
 use model::write_scope::WriteScope;
 use model::read_scope::ReadScope;
+use model::read_authorization::ReadGrantKey;
 use anyhow::{bail, Context, Result};
 
 pub fn init() -> App<'static, 'static> {
@@ -237,10 +238,11 @@ fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
             for scope_code in scope_codes {
                 let scope = WriteScope::new(&scope_code, &application, &account);
                 match scope.save(&connection) {
-                    Ok(s) => println!(
+                    Ok(s) => {
+                        println!(
                         "Write Scope {} created for {} application",
-                        s.code, s.application_code
-                        ),
+                        s.code, s.application_code);
+                    },
                     Err(_) => bail!(
                         "Write Scope {} creation FAILED for {} application",
                         scope_code, application.code
@@ -252,12 +254,26 @@ fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         // Create read scopes
         if let Some(scope_codes) = read_scope_codes {
             for scope_code in scope_codes {
-                let scope = WriteScope::new(&scope_code, &application, &account);
+                let scope = ReadScope::new(&scope_code, &application, &account);
                 match scope.save(&connection) {
-                    Ok(s) => println!(
+                    Ok(s) => {
+                        println!(
                         "Read Scope {} created for {} application",
                         s.code, s.application_code
-                        ),
+                        );
+
+                        let unlocked_scope = s.to_unlocked(&account, &connection)
+                            .context("Could not unlock ReadScope.")?;
+
+                        let key = ReadGrantKey::new(&unlocked_scope, &account);
+
+                        match key.save(&connection) {
+                            Ok(_) => println!(
+                                "Key added for Write Scope {}",
+                                s.code),
+                            Err(_) => bail!("Could not create key for read grant {}", s.code),
+                        }
+                    },
                     Err(_) => bail!(
                         "Read Scope {} creation FAILED for {} application",
                         scope_code, application.code

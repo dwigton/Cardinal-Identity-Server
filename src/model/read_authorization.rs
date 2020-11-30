@@ -2,7 +2,6 @@ use chrono::NaiveDateTime;
 use chrono::{Duration, Utc};
 use database::schema::read_authorization;
 use database::schema::read_grant_key;
-use database::schema::write_authorization;
 use database::MyConnection;
 use diesel::prelude::*;
 use encryption::byte_encryption::encrypt_32;
@@ -16,65 +15,6 @@ use model::client::Client;
 use model::read_scope::{ReadScope, UnlockedReadScope};
 use model::certificate::{Certificate, CertData};
 use model::Scope;
-
-
-#[derive(PartialEq, Debug, Queryable)]
-pub struct WriteAuthorization {
-    pub client_id: Vec<u8>,
-    pub write_grant_scope_id: i32,
-    pub encrypted_access_key: Vec<u8>,
-    pub public_key: Vec<u8>,
-    pub signature: Vec<u8>,
-}
-
-#[derive(Insertable)]
-#[table_name = "write_authorization"]
-pub struct NewWriteAuthorization {
-    pub client_id: Vec<u8>,
-    pub write_grant_scope_id: i32,
-    pub encrypted_access_key: Vec<u8>,
-    pub public_key: Vec<u8>,
-    pub signature: Vec<u8>,
-}
-
-impl Signed for NewWriteAuthorization {
-    fn record_hash(&self) -> [u8; 32] {
-        hash_by_parts(&[
-            &self.client_id,
-            &self.write_grant_scope_id.to_le_bytes(),
-            &self.encrypted_access_key,
-            &self.public_key,
-        ])
-    }
-
-    fn signature(&self) -> Vec<u8> {
-        self.signature.clone()
-    }
-}
-
-impl Signed for WriteAuthorization {
-    fn record_hash(&self) -> [u8; 32] {
-        hash_by_parts(&[
-            &self.client_id,
-            &self.write_grant_scope_id.to_le_bytes(),
-            &self.encrypted_access_key,
-            &self.public_key,
-        ])
-    }
-
-    fn signature(&self) -> Vec<u8> {
-        self.signature.clone()
-    }
-}
-
-impl NewWriteAuthorization {
-    pub fn save(&self, connection: &MyConnection) -> CommonResult<WriteAuthorization> {
-
-        Ok(diesel::insert_into(write_authorization::table)
-            .values(self)
-            .get_result(connection)?)
-    }
-}
 
 #[derive(PartialEq, Debug, Queryable, Identifiable)]
 #[table_name = "read_grant_key"]
@@ -173,7 +113,7 @@ impl Certified for NewReadGrantKey {
                 },
                 expiration_date: self.expiration_date,
             },
-            signature: *as_256(&self.signature),
+            signature: *as_512(&self.signature),
         }
     }
 }

@@ -128,7 +128,7 @@ impl ReadScope {
         for scope in &scopes {
             if !account.verify_record(scope) {
                 return Err(CommonError::FailedVerification(Some(
-                    "Write scope failed verification.".to_owned(),
+                    "Read scope failed verification.".to_owned(),
                 )));
             }
         }
