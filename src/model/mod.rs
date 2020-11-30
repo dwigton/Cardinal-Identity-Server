@@ -28,7 +28,7 @@ pub trait Certifiable<T: Certified> {
 pub trait Certified: {
     fn certificate(&self) -> Certificate;
     fn data(&self) -> CertData {
-        self.certificate().data()
+        self.certificate().data
     }
 }
 
