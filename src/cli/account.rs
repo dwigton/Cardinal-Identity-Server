@@ -13,7 +13,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("Add a new account")
                 .arg(
                     Arg::with_name("username")
-                        .short("u")
+                        .short("a")
                         .long("username")
                         .help("The account name for which to create a new account.")
                         .value_name("USERNAME")
@@ -42,7 +42,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("Change account password")
                 .arg(
                     Arg::with_name("username")
-                        .short("u")
+                        .short("a")
                         .long("username")
                         .help("The account name for which to change the password.")
                         .value_name("USERNAME")
@@ -70,7 +70,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("Delete account.")
                 .arg(
                     Arg::with_name("username")
-                        .short("u")
+                        .short("a")
                         .long("username")
                         .help("The account name to delete.")
                         .value_name("USERNAME")

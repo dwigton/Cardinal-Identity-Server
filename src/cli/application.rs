@@ -17,7 +17,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("Add a new application")
                 .arg(
                     Arg::with_name("account_name")
-                        .short("u")
+                        .short("a")
                         .long("account_name")
                         .help("The account for which to add an application.")
                         .value_name("ACCOUNT")
@@ -61,7 +61,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("Delete application.")
                 .arg(
                     Arg::with_name("account_name")
-                        .short("u")
+                        .short("a")
                         .long("account_name")
                         .help("The account name for which to delete the application.")
                         .value_name("ACCOUNT")
@@ -95,7 +95,7 @@ pub fn init() -> App<'static, 'static> {
                 .about("edit scopes.")
                 .arg(
                     Arg::with_name("account_name")
-                        .short("u")
+                        .short("a")
                         .long("account_name")
                         .help("The account name for which to edit application scopes.")
                         .value_name("ACCOUNT")

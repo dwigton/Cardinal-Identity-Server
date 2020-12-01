@@ -206,6 +206,12 @@ impl ReadAuthorization {
             .get_results(connection)?)
     }
 
+    pub fn load_by_key_client(key: &UnlockedReadGrantKey, client: &Client, connection: &MyConnection) -> CommonResult<ReadAuthorization> {
+        Ok(read_authorization::table
+            .filter(read_authorization::client_id.eq(&client.client_id))
+            .get_result(connection)?)
+    }
+
     pub fn load_all_for_grant(grant: &ReadGrantKey, connection: &MyConnection) -> CommonResult<Vec<ReadAuthorization>> {
         Ok(read_authorization::table
             .filter(read_authorization::read_grant_key_id.eq(&grant.id))
@@ -326,6 +332,10 @@ impl UnlockedReadGrantKey {
         account.sign_record(&new_authorization).save(connection)?;
 
         Ok(())
+    }
+
+    pub fn revoke(&self, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+        ReadAuthorization::load_by_key_client(self, client, connection)?.delete(connection)
     }
 }
 

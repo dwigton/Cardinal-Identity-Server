@@ -164,6 +164,20 @@ impl Client {
             .get_results(connection)?)
     }
 
+    pub fn load_all(
+        connection: &MyConnection,
+    ) -> CommonResult<Vec<Client>> {
+        Ok(client::table
+            .inner_join(application::table)
+            .select((
+                    client::client_id,
+                    client::application_id,
+                    application::code,
+                    client::signature
+                    ))
+            .get_results(connection)?)
+    }
+
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {
         // First delete all read authorizations pointing to this client.
         let read_auths = ReadAuthorization::load_all_for_client(&self, connection)?;

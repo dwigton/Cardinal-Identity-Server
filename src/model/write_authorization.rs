@@ -5,6 +5,7 @@ use error::CommonResult;
 use model::{Signable, Signed};
 use model::client::Client;
 use model::write_scope::LockedWriteScope;
+use model::write_scope::UnlockedWriteScope;
 use encryption::hash_by_parts;
 
 
@@ -104,6 +105,13 @@ impl WriteAuthorization {
         Ok(write_authorization::table
             .filter(write_authorization::write_grant_scope_id.eq(&scope.id))
             .get_results(connection)?)
+    }
+
+    pub fn load_scope_client(scope: &UnlockedWriteScope, client: &Client, connection: &MyConnection) -> CommonResult<WriteAuthorization> {
+        Ok(write_authorization::table
+            .filter(write_authorization::client_id.eq(&client.client_id))
+            .filter(write_authorization::write_grant_scope_id.eq(&scope.id))
+            .get_result(connection)?)
     }
 
     pub fn delete(self, connection: &MyConnection) -> CommonResult<()> {

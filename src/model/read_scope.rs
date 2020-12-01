@@ -220,6 +220,14 @@ impl UnlockedReadScope {
         Ok(())
     }
 
+    pub fn revoke(&self, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+        for read_key in &self.read_keys {
+            read_key.revoke(client, connection)?;
+        }
+
+        Ok(())
+    }
+
     pub fn add_new_key(&self, account: &UnlockedAccount, connection: &MyConnection) -> CommonResult<()> {
         let key = ReadGrantKey::new(self, account);
         key.save(connection)?;

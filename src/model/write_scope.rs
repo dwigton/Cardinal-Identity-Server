@@ -272,6 +272,11 @@ impl UnlockedWriteScope {
 
         Ok(())
     }
+
+    pub fn revoke(&self, client: &Client, connection: &MyConnection) -> CommonResult<()> {
+        let auth = WriteAuthorization::load_scope_client(self, &client, connection)?;
+        auth.delete(connection)
+    }
 }
 
 impl Certified for NewWriteScope {
