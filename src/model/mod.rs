@@ -6,9 +6,9 @@ pub mod read_scope;
 pub mod write_authorization;
 pub mod read_authorization;
 pub mod certificate;
-use model::certificate::CertData;
-use model::certificate::Certificate;
-use encryption::hash_by_parts;
+use crate::model::certificate::CertData;
+use crate::model::certificate::Certificate;
+use crate::encryption::hash_by_parts;
 
 pub trait Signable<T: Signed> {
     fn record_hash(&self) -> [u8; 32];

@@ -1,5 +1,3 @@
-extern crate rpassword;
-
 pub mod account;
 pub mod application;
 pub mod client;
@@ -37,8 +35,8 @@ pub fn get_new_password(message: &str, reenter_message: &str) -> String {
     let mut pass2: String;
 
     loop {
-        pass = self::rpassword::prompt_password_stdout(message).unwrap();
-        pass2 = self::rpassword::prompt_password_stdout(reenter_message).unwrap();
+        pass = rpassword::prompt_password_stdout(message).unwrap();
+        pass2 = rpassword::prompt_password_stdout(reenter_message).unwrap();
 
         if pass == pass2 {
             break;
@@ -51,5 +49,5 @@ pub fn get_new_password(message: &str, reenter_message: &str) -> String {
 }
 
 pub fn get_password(message: &str) -> String {
-    self::rpassword::prompt_password_stdout(message).unwrap()
+    rpassword::prompt_password_stdout(message).unwrap()
 }

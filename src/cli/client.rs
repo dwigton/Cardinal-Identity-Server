@@ -1,13 +1,13 @@
 use base64::{decode, encode};
 use clap::{App, Arg, ArgMatches, SubCommand};
-use cli::{get_input, get_password};
-use database::establish_connection;
-use database::MyConnection;
-use model::account::Account;
-use model::application::Application;
-use model::client::Client;
-use model::read_scope::ReadScope;
-use model::write_scope::WriteScope;
+use crate::cli::{get_input, get_password};
+use crate::database::establish_connection;
+use crate::database::MyConnection;
+use crate::model::account::Account;
+use crate::model::application::Application;
+use crate::model::client::Client;
+use crate::model::read_scope::ReadScope;
+use crate::model::write_scope::WriteScope;
 use anyhow::{bail, Context, Result};
 
 pub fn init() -> App<'static, 'static> {

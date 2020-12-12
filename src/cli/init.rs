@@ -1,10 +1,9 @@
 use base64::encode;
 use clap::{App, SubCommand};
-use cli::{get_input, get_new_password};
-use database;
-use database::establish_connection;
-use encryption::random_int_256;
-use model::account::Account;
+use crate::cli::{get_input, get_new_password};
+use crate::database::establish_connection;
+use crate::encryption::random_int_256;
+use crate::model::account::Account;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 use anyhow::{Context, Result};
@@ -19,7 +18,7 @@ pub fn run() -> Result<()> {
 
     loop {
         database_url = get_input("DATABASE_URL: ");
-        if database::can_connect_to_url(&database_url) {
+        if crate::database::can_connect_to_url(&database_url) {
             break;
         }
 

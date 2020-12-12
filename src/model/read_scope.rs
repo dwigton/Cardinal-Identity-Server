@@ -1,15 +1,15 @@
-use database::schema::read_grant_scope;
-use database::schema::application;
-use database::MyConnection;
+use crate::database::schema::read_grant_scope;
+use crate::database::schema::application;
+use crate::database::MyConnection;
 use diesel::expression::dsl::any;
 use diesel::prelude::*;
-use error::{CommonError, CommonResult};
-use model::account::UnlockedAccount;
-use model::application::Application;
-use model::{Signable, Signed};
-use model::read_authorization::{ReadGrantKey, UnlockedReadGrantKey};
-use model::client::Client;
-use encryption::hash_by_parts;
+use crate::error::{CommonError, CommonResult};
+use crate::model::account::UnlockedAccount;
+use crate::model::application::Application;
+use crate::model::{Signable, Signed};
+use crate::model::read_authorization::{ReadGrantKey, UnlockedReadGrantKey};
+use crate::model::client::Client;
+use crate::encryption::hash_by_parts;
 
 // Read scope logic
 #[derive(PartialEq, Debug, Queryable, Identifiable)]

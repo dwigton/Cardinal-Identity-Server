@@ -1,6 +1,6 @@
-use model::client::ClientApp;
-use model::scope::Scope;
-use database::DbConn;
+use crate::model::client::Client;
+use crate::model::write_scope::WriteScope;
+use crate::database::DbConn;
 
 /// Data to pass to the login screen
 #[derive(Serialize)]
@@ -13,7 +13,7 @@ pub struct LoginContext {
 pub struct AdminContext {
     title: String,
     username: String,
-    clients: Vec<ClientView>,
+    clients: Vec<Client>,
 }
 
 /// data needed to display a client application

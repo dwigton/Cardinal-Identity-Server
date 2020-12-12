@@ -1,8 +1,8 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
-use cli::{get_input, get_new_password, get_password};
-use database::establish_connection;
-use database::MyConnection;
-use model::account::Account;
+use super::{get_input, get_new_password, get_password};
+use crate::database::establish_connection;
+use crate::database::MyConnection;
+use crate::model::account::Account;
 use anyhow::{bail, Context, Result};
 
 pub fn init() -> App<'static, 'static> {

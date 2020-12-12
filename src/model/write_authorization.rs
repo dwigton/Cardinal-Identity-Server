@@ -1,12 +1,12 @@
-use database::schema::write_authorization;
-use database::MyConnection;
+use crate::database::schema::write_authorization;
+use crate::database::MyConnection;
 use diesel::prelude::*;
-use error::CommonResult;
-use model::{Signable, Signed};
-use model::client::Client;
-use model::write_scope::LockedWriteScope;
-use model::write_scope::UnlockedWriteScope;
-use encryption::hash_by_parts;
+use crate::error::CommonResult;
+use crate::model::{Signable, Signed};
+use crate::model::client::Client;
+use crate::model::write_scope::LockedWriteScope;
+use crate::model::write_scope::UnlockedWriteScope;
+use crate::encryption::hash_by_parts;
 
 
 #[derive(PartialEq, Debug, Queryable)]

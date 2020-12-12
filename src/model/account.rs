@@ -1,21 +1,21 @@
 use base64::{decode, encode};
 use clear_on_drop::clear::Clear;
-use database::schema::account;
-use database::MyConnection;
+use crate::database::schema::account;
+use crate::database::MyConnection;
 use diesel::prelude::*;
 use diesel::update;
-use encryption::byte_encryption::{decrypt_32, encrypt_32};
-use encryption::signing_key::verify_signature;
-use encryption::signing_key::SigningKey;
-use encryption::{
+use crate::encryption::byte_encryption::{decrypt_32, encrypt_32};
+use crate::encryption::signing_key::verify_signature;
+use crate::encryption::signing_key::SigningKey;
+use crate::encryption::{
     check_password, hash_password, hash_salted_password, as_256, random_int_256, secure_hash,
 };
-use encryption::{decode_32, decode_64, as_512};
-use error::{CommonError, CommonResult};
-use model::application::Application;
-use model::application::PortableApplication;
-use model::{Signable, Signed};
-use model::{Certifiable, Certified};
+use crate::encryption::{decode_32, decode_64, as_512};
+use crate::error::{CommonError, CommonResult};
+use crate::model::application::Application;
+use crate::model::application::PortableApplication;
+use crate::model::{Signable, Signed};
+use crate::model::{Certifiable, Certified};
 
 pub struct PortableAccount {
     pub public_key: String,

@@ -1,6 +1,6 @@
-use model::Scope;
+use crate::model::Scope;
 use chrono::NaiveDateTime;
-use encryption::{lpad_to_256, hash_by_parts};
+use crate::encryption::{lpad_to_256, hash_by_parts};
 
 #[derive(Clone)]
 pub struct CertData {

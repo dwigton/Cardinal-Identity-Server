@@ -1,16 +1,14 @@
-#![feature(plugin, decl_macro, custom_derive)]
-// #![plugin(rocket_codegen)]
-
 mod admin;
 mod api;
-use rocket;
-use rocket::{Request, State, Outcome};
+use rocket::{Request, State};
+use rocket::outcome::Outcome;
 use rocket::request::{self, FromRequest};
 use rocket_contrib::templates::Template;
 use rocket_contrib::serve::StaticFiles;
 use rocket::http::Status;
-use database;
-use database::{DbConn, Pool};
+use rocket::tokio::runtime::Runtime;
+use rocket::tokio::prelude::*;
+use crate::database::{DbConn, Pool};
 
 impl<'a, 'r> FromRequest<'a, 'r> for DbConn {
     type Error = ();
@@ -24,9 +22,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for DbConn {
     }
 }
 
-pub fn run() {
+pub fn run() -> Result<()> {
+    let mut rt = Runtime::new()?;
+
+    rt.block_on(
     rocket::ignite()
-        .manage(database::init_pool())
+        .manage(crate::database::init_pool())
         .mount("/", routes![
                api::authorize, 
                api::token, 
@@ -42,6 +43,6 @@ pub fn run() {
         .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/media")))
         .mount("/css", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/css")))
         .attach(Template::fairing())
-        .launch();
+        .launch());
 }
 

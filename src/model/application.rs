@@ -1,13 +1,13 @@
-use database::schema::application;
-use database::MyConnection;
+use crate::database::schema::application;
+use crate::database::MyConnection;
 use diesel::prelude::*;
-use encryption::hash_by_parts;
-use error::{CommonError, CommonResult};
-use model::account::UnlockedAccount;
-use model::{Signable, Signed};
-use model::client::Client;
-use model::write_scope::WriteScope;
-use model::read_scope::ReadScope;
+use crate::encryption::hash_by_parts;
+use crate::error::{CommonError, CommonResult};
+use crate::model::account::UnlockedAccount;
+use crate::model::{Signable, Signed};
+use crate::model::client::Client;
+use crate::model::write_scope::WriteScope;
+use crate::model::read_scope::ReadScope;
 
 pub struct PortableApplication {
     pub code: String,

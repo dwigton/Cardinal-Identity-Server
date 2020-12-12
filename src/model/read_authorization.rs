@@ -1,20 +1,20 @@
 use chrono::NaiveDateTime;
 use chrono::{Duration, Utc};
-use database::schema::read_authorization;
-use database::schema::read_grant_key;
-use database::MyConnection;
+use crate::database::schema::read_authorization;
+use crate::database::schema::read_grant_key;
+use crate::database::MyConnection;
 use diesel::prelude::*;
-use encryption::byte_encryption::encrypt_32;
-use encryption::exchange_key::{EphemeralKey, ExchangeKey};
-use encryption::{hash_by_parts, as_256, as_512, random_int_256};
-use error::CommonResult;
-use model::account::UnlockedAccount;
-use model::{Signed, Signable};
-use model::{Certified, Certifiable};
-use model::client::Client;
-use model::read_scope::{ReadScope, UnlockedReadScope};
-use model::certificate::{Certificate, CertData};
-use model::Scope;
+use crate::encryption::byte_encryption::encrypt_32;
+use crate::encryption::exchange_key::{EphemeralKey, ExchangeKey};
+use crate::encryption::{hash_by_parts, as_256, as_512, random_int_256};
+use crate::error::CommonResult;
+use crate::model::account::UnlockedAccount;
+use crate::model::{Signed, Signable};
+use crate::model::{Certified, Certifiable};
+use crate::model::client::Client;
+use crate::model::read_scope::{ReadScope, UnlockedReadScope};
+use crate::model::certificate::{Certificate, CertData};
+use crate::model::Scope;
 
 #[derive(PartialEq, Debug, Queryable, Identifiable)]
 #[table_name = "read_grant_key"]

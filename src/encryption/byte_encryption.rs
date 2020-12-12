@@ -1,5 +1,5 @@
-use encryption::secure_hash;
-use error::{CommonError, CommonResult};
+use crate::encryption::secure_hash;
+use crate::error::{CommonError, CommonResult};
 // Xor encrypt 32byte data by 32B key and append
 // 32B data hash for verification.
 pub fn encrypt_32(input: &[u8; 32], key: &[u8; 32]) -> [u8; 64] {

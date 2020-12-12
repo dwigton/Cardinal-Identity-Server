@@ -1,22 +1,17 @@
-extern crate argon2rs;
-extern crate ed25519_compact;
-pub extern crate miscreant;
-extern crate rand;
-extern crate sha2;
-extern crate x25519_dalek;
-
 pub mod byte_encryption;
 pub mod exchange_key;
 pub mod signing_key;
 
 use base64::{decode, encode};
-pub use encryption::argon2rs::Argon2;
-pub use encryption::argon2rs::Variant::Argon2i;
-use encryption::miscreant::siv::Aes128PmacSiv;
-pub use encryption::rand::Rng;
-pub use encryption::sha2::{Digest, Sha512Trunc256};
-pub use encryption::x25519_dalek::PublicKey as XPublicKey;
-use error::CommonResult;
+pub use rand;
+pub use x25519_dalek;
+pub use ed25519_compact;
+pub use argon2rs::Argon2;
+pub use argon2rs::Variant::Argon2i;
+pub use rand::Rng;
+pub use sha2::{Digest, Sha512Trunc256};
+pub use x25519_dalek::PublicKey as XPublicKey;
+use crate::error::CommonResult;
 use std::convert::TryInto;
 
 pub const PUBLIC_KEY_LENGTH: usize = 32;
@@ -69,49 +64,29 @@ pub fn hash_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
     result == 0
 }
 
-pub fn encrypt(data: &[u8], key: &[u8]) -> Vec<u8> {
-    let mut siv = Aes128PmacSiv::new(&key);
-    // passing empty additional data for now. Might be nice to
-    // sign permissions at some point to prevent privilege escalation.
-    let additional_data: Vec<Vec<u8>> = Vec::new();
-
-    siv.seal(&additional_data, &data)
-}
-
-pub fn decrypt(data: &[u8], key: &[u8]) -> CommonResult<Vec<u8>> {
-    let additional_data: Vec<Vec<u8>> = Vec::new();
-    let mut siv = Aes128PmacSiv::new(&key);
-    Ok(siv.open(&additional_data, &data)?)
-}
-
 pub fn secure_hash(data: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha512Trunc256::new();
-    let mut hash_data = Vec::new();
 
     for slice in data {
-        hash_data.extend_from_slice(slice);
+        hasher.update(slice);
     }
 
-    hasher.input(hash_data);
-
-    hasher.result().into()
+    hasher.finalize().into()
 }
 
 pub fn hash_by_parts(data: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha512Trunc256::new();
-    let mut hash_data = Vec::new();
 
     for slice in data {
         let mut slice_hasher = Sha512Trunc256::new();
-        slice_hasher.input(slice);
-        let add_data = slice_hasher.result();
+        slice_hasher.update(slice);
 
-        hash_data.extend_from_slice(&add_data);
+        let add_data = slice_hasher.finalize();
+
+        hasher.update(&add_data);
     }
 
-    hasher.input(hash_data);
-
-    hasher.result().into()
+    hasher.finalize().into()
 }
 
 pub fn decode_64(input: &str) -> CommonResult<[u8; 64]> {

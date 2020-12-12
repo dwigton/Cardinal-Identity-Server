@@ -1,6 +1,5 @@
 use diesel;
-use encryption;
-use error::CommonError::*;
+use crate::error::CommonError::*;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
@@ -73,14 +72,6 @@ impl From<diesel::result::Error> for CommonError {
                 CommonError::LibraryError(Some("Diesel __Nonexhaustive".to_string()))
             }
         }
-    }
-}
-
-impl From<encryption::miscreant::Error> for CommonError {
-    fn from(_err: encryption::miscreant::Error) -> CommonError {
-        CommonError::LibraryError(Some(
-            "Miscreant Error. Could be anything but probably truncated data.".to_string(),
-        ))
     }
 }
 

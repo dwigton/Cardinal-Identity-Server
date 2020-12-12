@@ -1,16 +1,16 @@
-use database::schema::client;
-use database::schema::application;
-use database::MyConnection;
+use crate::database::schema::client;
+use crate::database::schema::application;
+use crate::database::MyConnection;
 use diesel::prelude::*;
-use encryption::byte_encryption::decrypt_32;
-use encryption::exchange_key::ExchangeKey;
-use encryption::hash_by_parts;
-use error::CommonResult;
-use model::account::UnlockedAccount;
-use model::application::Application;
-use model::{Signable, Signed};
-use model::read_authorization::ReadAuthorization;
-use model::write_authorization::WriteAuthorization;
+use crate::encryption::byte_encryption::decrypt_32;
+use crate::encryption::exchange_key::ExchangeKey;
+use crate::encryption::hash_by_parts;
+use crate::error::CommonResult;
+use crate::model::account::UnlockedAccount;
+use crate::model::application::Application;
+use crate::model::{Signable, Signed};
+use crate::model::read_authorization::ReadAuthorization;
+use crate::model::write_authorization::WriteAuthorization;
 use std::convert::From;
 
 pub struct UnsignedClient {

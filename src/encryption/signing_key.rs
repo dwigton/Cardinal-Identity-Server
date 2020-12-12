@@ -1,8 +1,8 @@
-use encryption::byte_encryption::{decrypt_32, encrypt_32};
-use encryption::ed25519_compact::{KeyPair, Noise, PublicKey, Seed, Signature};
-use encryption::random_int_256;
-use encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
-use error::CommonResult;
+use crate::encryption::byte_encryption::{decrypt_32, encrypt_32};
+use crate::encryption::ed25519_compact::{KeyPair, Noise, PublicKey, Seed, Signature};
+use crate::encryption::random_int_256;
+use crate::encryption::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
+use crate::error::CommonResult;
 use std::convert::TryInto;
 
 pub fn verify_signature(public_key: &[u8], message: &[u8], signature: &[u8]) -> bool {

@@ -1,11 +1,7 @@
-extern crate dotenv;
-extern crate r2d2;
-extern crate r2d2_diesel;
-
 pub mod schema;
 
-use self::dotenv::dotenv;
-use self::r2d2_diesel::ConnectionManager;
+use dotenv::dotenv;
+use r2d2_diesel::ConnectionManager;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::ConnectionError;

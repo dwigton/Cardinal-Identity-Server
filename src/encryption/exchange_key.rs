@@ -1,11 +1,11 @@
-use encryption::byte_encryption::{decrypt_32, encrypt_32};
-use encryption::rand;
-use encryption::x25519_dalek::EphemeralSecret;
-use encryption::x25519_dalek::PublicKey;
-use encryption::x25519_dalek::StaticSecret;
-use encryption::SECRET_KEY_LENGTH;
-use encryption::{Digest, Sha512Trunc256};
-use error::CommonResult;
+use crate::encryption::byte_encryption::{decrypt_32, encrypt_32};
+use crate::encryption::rand;
+use crate::encryption::x25519_dalek::EphemeralSecret;
+use crate::encryption::x25519_dalek::PublicKey;
+use crate::encryption::x25519_dalek::StaticSecret;
+use crate::encryption::SECRET_KEY_LENGTH;
+use crate::encryption::{Digest, Sha512Trunc256};
+use crate::error::CommonResult;
 use std::convert::TryInto;
 
 // This acts as a constant interface while the backing library is
@@ -56,9 +56,9 @@ impl ExchangeKey {
 
         let mut hasher = Sha512Trunc256::new();
 
-        hasher.input(shared_key.as_bytes());
+        hasher.update(shared_key.as_bytes());
 
-        hasher.result().try_into().unwrap()
+        hasher.finalize().try_into().unwrap()
     }
 }
 
@@ -85,8 +85,8 @@ impl EphemeralKey {
 
         let mut hasher = Sha512Trunc256::new();
 
-        hasher.input(shared_key.as_bytes());
+        hasher.update(shared_key.as_bytes());
 
-        hasher.result().try_into().unwrap()
+        hasher.finalize().try_into().unwrap()
     }
 }

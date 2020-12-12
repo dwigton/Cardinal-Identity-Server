@@ -3,13 +3,13 @@ mod view;
 use rocket::Request;
 use rocket::response::{Redirect, Flash};
 use rocket::request::{self, FromRequest, Form};
-use rocket::Outcome;
-use rocket::http::{Cookie, Cookies};
+use rocket::outcome::Outcome;
+use rocket::http::{Cookie, CookieJar};
 use rocket_contrib::templates::Template;
-use model::user::User;
-use model::client::ClientApp;
-use database::DbConn;
-use self::view::{LoginContext, AdminContext};
+use crate::model::account::Account;
+use crate::model::client::Client;
+use crate::database::DbConn;
+use self::view::{LoginContext, AdminContext, ClientView};
 
 #[derive(FromForm)]
 pub struct LoginParameters {
@@ -80,13 +80,13 @@ pub fn login() -> Template {
 }
 
 #[post("/login", format = "application/x-www-form-urlencoded", data = "<login_params>", rank = 2)]
-pub fn post_login(connection: DbConn, mut cookies: Cookies, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
+pub fn post_login(connection: DbConn, mut cookies: CookieJar, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
     let username = &login_params.username;
     let password = &login_params.password;
 
-    let user = User::load(&username, &password, &connection);
+    let account = Account::load_unlocked(&username, &password, &connection);
 
-    match user {
+    match account {
         Ok(u) => {
             match u.account {
                 Some(_) => {
@@ -102,7 +102,7 @@ pub fn post_login(connection: DbConn, mut cookies: Cookies, login_params: Form<L
 }
 
 #[post("/logout")]
-pub fn logout(mut cookies: Cookies) -> Flash<Redirect> {
+pub fn logout(mut cookies: CookieJar) -> Flash<Redirect> {
     cookies.remove_private(Cookie::named("username"));
     cookies.remove_private(Cookie::named("password"));
     Flash::success(Redirect::to("/login"), "Successfully logged out.")
@@ -111,8 +111,8 @@ pub fn logout(mut cookies: Cookies) -> Flash<Redirect> {
 #[get("/home")]
 pub fn index(connection: DbConn, user: LoggedInUser) -> Template {
 
-    let admin_user = User::load(&user.username, &user.password, &connection).unwrap();
-    let clients = ClientApp::load_by_user(&admin_user, &connection).unwrap();
+    let admin_user = Account::load_unlocked(&user.username, &user.password, &connection).unwrap();
+    let clients = Client::load_by_user(&admin_user, &connection).unwrap();
     let view_clients = ClientView::from_client_applications(&clients);
     let context = AdminContext {
         title: "Home".to_string(),
