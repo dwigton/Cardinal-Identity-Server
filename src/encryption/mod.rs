@@ -178,6 +178,7 @@ mod tests {
 
     }
 
+    /*
     #[test]
     fn encrypt_decrypt() {
         // get some data to encrypt not nicely aligned.
@@ -200,4 +201,5 @@ mod tests {
 
         assert_eq!(result, 0);
     }
+    */
 }

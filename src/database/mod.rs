@@ -1,34 +1,16 @@
 pub mod schema;
 
 use dotenv::dotenv;
-use r2d2_diesel::ConnectionManager;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::ConnectionError;
-use std::ops::Deref;
+use anyhow::Result;
 
 // An alias to the type for a pool of Diesel Postgres connections
 pub type MyConnection = PgConnection;
-pub type Pool = r2d2::Pool<ConnectionManager<MyConnection>>;
 
-pub struct DbConn(pub r2d2::PooledConnection<ConnectionManager<MyConnection>>);
-
-impl Deref for DbConn {
-    type Target = MyConnection;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub fn init_pool() -> Pool {
-    let database_url =
-        dotenv::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
-    let manager = ConnectionManager::<MyConnection>::new(database_url);
-    r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create database connection pool.")
-}
+#[database("postgres_connection")]
+pub struct DbConn(MyConnection);
 
 pub fn establish_connection() -> Result<MyConnection, ConnectionError> {
     dotenv().ok();

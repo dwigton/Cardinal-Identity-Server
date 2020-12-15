@@ -8,26 +8,15 @@ use rocket_contrib::serve::StaticFiles;
 use rocket::http::Status;
 use rocket::tokio::runtime::Runtime;
 use rocket::tokio::prelude::*;
-use crate::database::{DbConn, Pool};
-
-impl<'a, 'r> FromRequest<'a, 'r> for DbConn {
-    type Error = ();
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<DbConn, ()> {
-        let pool = request.guard::<State<Pool>>()?;
-        match pool.get() {
-            Ok(conn) => Outcome::Success(DbConn(conn)),
-            Err(_) => Outcome::Failure((Status::ServiceUnavailable, ()))
-        }
-    }
-}
+use crate::database::{DbConn};
+use anyhow::{bail, Result};
 
 pub fn run() -> Result<()> {
     let mut rt = Runtime::new()?;
 
     rt.block_on(
     rocket::ignite()
-        .manage(crate::database::init_pool())
+        .attach(DbConn::fairing())
         .mount("/", routes![
                api::authorize, 
                api::token, 
@@ -44,5 +33,7 @@ pub fn run() -> Result<()> {
         .mount("/css", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/css")))
         .attach(Template::fairing())
         .launch());
+
+    Ok(())
 }
 

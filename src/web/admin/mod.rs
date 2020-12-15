@@ -1,8 +1,7 @@
 mod view;
 
-use rocket::Request;
 use rocket::response::{Redirect, Flash};
-use rocket::request::{self, FromRequest, Form};
+use rocket::request::{self, FromRequest, Form, Request};
 use rocket::outcome::Outcome;
 use rocket::http::{Cookie, CookieJar};
 use rocket_contrib::templates::Template;
@@ -27,10 +26,11 @@ pub struct LoggedInAdmin {
     password: String,
 }
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for LoggedInUser {
     type Error = ();
 
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<LoggedInUser, ()> {
+    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
 
         let username: String = match request.cookies().get_private("username") {
             Some(c) => c.value().to_owned(),
@@ -49,10 +49,11 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoggedInUser {
     }
 }
 
+#[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for LoggedInAdmin {
     type Error = ();
 
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<LoggedInAdmin, ()> {
+    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
 
         let username: String = match request.cookies().get_private("adminname") {
             Some(c) => c.value().to_owned(),
@@ -80,7 +81,7 @@ pub fn login() -> Template {
 }
 
 #[post("/login", format = "application/x-www-form-urlencoded", data = "<login_params>", rank = 2)]
-pub fn post_login(connection: DbConn, mut cookies: CookieJar, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
+pub fn post_login(connection: DbConn, mut cookies: &CookieJar<'_>, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
     let username = &login_params.username;
     let password = &login_params.password;
 
@@ -102,7 +103,7 @@ pub fn post_login(connection: DbConn, mut cookies: CookieJar, login_params: Form
 }
 
 #[post("/logout")]
-pub fn logout(mut cookies: CookieJar) -> Flash<Redirect> {
+pub fn logout(mut cookies: &CookieJar<'_>) -> Flash<Redirect> {
     cookies.remove_private(Cookie::named("username"));
     cookies.remove_private(Cookie::named("password"));
     Flash::success(Redirect::to("/login"), "Successfully logged out.")

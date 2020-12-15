@@ -1,8 +1,8 @@
 extern crate assert_cmd;
 extern crate predicates;
-use cli::application::assert_cmd::prelude::*;
+use crate::cli::application::assert_cmd::prelude::*;
 use std::process::Command;
-use cli::account::{create_account, delete_account};
+use crate::cli::account::{create_account, delete_account};
 
 #[test]
 fn test_create_application() {
@@ -42,7 +42,7 @@ pub fn create_application(account: &str, password: &str, code: &str, description
 
     cmd.arg("application")
         .arg("add")
-        .arg("-u")
+        .arg("-a")
         .arg(account)
         .arg("-p")
         .arg(password)
@@ -64,7 +64,7 @@ pub fn delete_application(account: &str, password: &str, code: &str) {
         .arg("-f")
         .arg("-c")
         .arg(code)
-        .arg("-u")
+        .arg("-a")
         .arg(account)
         .arg("-p")
         .arg(password);
@@ -77,7 +77,7 @@ pub fn add_scopes(account: &str, password: &str, application_code: &str, write_s
 
     cmd.arg("application")
         .arg("scope")
-        .arg("-u")
+        .arg("-a")
         .arg(account)
         .arg("-p")
         .arg(password)
@@ -100,7 +100,7 @@ pub fn delete_scopes(account: &str, password: &str, application_code: &str, writ
 
     cmd.arg("application")
         .arg("scope")
-        .arg("-u")
+        .arg("-a")
         .arg(account)
         .arg("-p")
         .arg(password)

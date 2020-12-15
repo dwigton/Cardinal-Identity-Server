@@ -314,7 +314,7 @@ impl Drop for UnlockedAccount {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use database::establish_connection;
+    use crate::database::establish_connection;
 
     #[test]
     fn create_account() {

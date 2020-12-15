@@ -1,7 +1,6 @@
 extern crate assert_cmd;
 extern crate predicates;
-use cli::account::assert_cmd::prelude::*;
-use cli::account::predicates::prelude::*;
+use crate::cli::account::assert_cmd::prelude::*;
 use std::process::Command;
 use std::panic;
 
@@ -21,7 +20,7 @@ fn test_change_account_password() {
     // Change the password
     cmd.arg("account")
         .arg("chngpwd")
-        .arg("-u")
+        .arg("-a")
         .arg("test_user2")
         .arg("-p")
         .arg("test_password")
@@ -49,7 +48,7 @@ pub fn create_account(name: &str, password: &str) {
 
     cmd.arg("account")
         .arg("add")
-        .arg("-u")
+        .arg("-a")
         .arg(name)
         .arg("-p")
         .arg(password)
@@ -65,7 +64,7 @@ pub fn delete_account(name: &str, password: &str) {
     cmd.arg("account")
         .arg("delete")
         .arg("-f")
-        .arg("-u")
+        .arg("-a")
         .arg(name)
         .arg("-p")
         .arg(password);

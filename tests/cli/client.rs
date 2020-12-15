@@ -1,9 +1,9 @@
 extern crate assert_cmd;
 extern crate predicates;
-use cli::client::assert_cmd::prelude::*;
+use crate::cli::client::assert_cmd::prelude::*;
 use std::process::Command;
-use cli::account::{create_account, delete_account};
-use cli::application::{create_application, delete_application, add_scopes, delete_scopes};
+use crate::cli::account::{create_account, delete_account};
+use crate::cli::application::{create_application, delete_application, add_scopes, delete_scopes};
 
 #[test]
 fn test_create_client() {

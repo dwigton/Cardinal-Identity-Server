@@ -39,7 +39,7 @@ pub fn decrypt_32(encrypted: &[u8; 64], key: &[u8; 32]) -> CommonResult<[u8; 32]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use encryption::random_int_256;
+    use crate::encryption::random_int_256;
 
     #[test]
     fn encrypt32_decrypt32() {

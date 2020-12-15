@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn encrypt_decrypt_key() {
-        use encryption::rand::Rng;
+        use crate::encryption::rand::Rng;
 
         let ed_key = SigningKey::new();
 

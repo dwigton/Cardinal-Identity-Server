@@ -208,6 +208,7 @@ impl ReadAuthorization {
 
     pub fn load_by_key_client(key: &UnlockedReadGrantKey, client: &Client, connection: &MyConnection) -> CommonResult<ReadAuthorization> {
         Ok(read_authorization::table
+            .filter(read_authorization::read_grant_key_id.eq(&key.id))
             .filter(read_authorization::client_id.eq(&client.client_id))
             .get_result(connection)?)
     }
