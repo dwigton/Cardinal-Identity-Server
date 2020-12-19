@@ -137,12 +137,14 @@ fn delete(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         bail!("Password reset cancelled.");
     }
 
-    Account::load_unlocked(&username, &password, &connection)
+    let name = username.clone();
+
+    Account::load_unlocked(username, password, &connection)
         .context("No such username and password.")?
         .delete(&connection)
-        .context(format!("Could not delete {}.", &username))?;
+        .context(format!("Could not delete {}.", &name))?;
 
-    println!("Account {} deleted", &username);
+    println!("Account {} deleted", &name);
 
     Ok(())
 }
@@ -164,13 +166,15 @@ fn change_password(matches: &ArgMatches, connection: &MyConnection) -> Result<()
         None => get_new_password("New account password: ", "Reenter new password: "),
     };
 
-    let unlocked_account = Account::load_unlocked(&username, &password, &connection)
+    let name = username.clone();
+
+    let unlocked_account = Account::load_unlocked(username, password, &connection)
         .context("Username and password not recognized.")?;
 
     unlocked_account.change_password(&new_password, &connection)
         .context("Could not change password.")?;
 
-    println!("Password successfully changed for account {}.", &username);
+    println!("Password successfully changed for account {}.", &name);
     
     Ok(())
 }

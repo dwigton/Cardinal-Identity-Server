@@ -1,0 +1,2 @@
+[global.databases.postgres_connection]
+url = "postgres://signingserver:testing@localhost/signingserver"

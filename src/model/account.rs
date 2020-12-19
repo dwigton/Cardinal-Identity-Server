@@ -80,11 +80,11 @@ impl Account {
     }
 
     pub fn load_unlocked(
-        name: &str,
-        password: &str,
+        name: String,
+        password: String,
         connection: &MyConnection,
     ) -> CommonResult<UnlockedAccount> {
-        Account::load_locked(name, connection)?.to_unlocked(password)
+        Account::load_locked(&name, connection)?.to_unlocked(&password)
     }
 
     pub fn delete_id(id: &i32, connection: &MyConnection) -> CommonResult<()> {
@@ -368,7 +368,7 @@ mod tests {
         let locked = account.save(&connection).expect("Could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
 
-        let unlocked_loaded = Account::load_unlocked("Test02", "password", &connection)
+        let unlocked_loaded = Account::load_unlocked("Test02".to_owned(), "password".to_owned(), &connection)
             .expect("could not load from database");
 
         let message = b"Please sign and return";

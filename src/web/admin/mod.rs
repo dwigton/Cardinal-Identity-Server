@@ -6,11 +6,12 @@ use rocket::outcome::Outcome;
 use rocket::http::{Cookie, CookieJar};
 use rocket_contrib::templates::Template;
 use crate::model::account::Account;
-use crate::model::client::Client;
+use crate::model::application::Application;
 use crate::database::DbConn;
-use self::view::{LoginContext, AdminContext, ClientView};
+use self::view::{AdminContext, LoginContext, ApplicationView};
+use base64::encode;
 
-#[derive(FromForm)]
+#[derive(FromForm, Clone)]
 pub struct LoginParameters {
     username: String,
     password: String,
@@ -73,7 +74,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoggedInAdmin {
 }
 
 #[get("/login")]
-pub fn login() -> Template {
+pub async fn login() -> Template {
     let context = LoginContext {
         title: "Login".to_string()
     };
@@ -81,44 +82,59 @@ pub fn login() -> Template {
 }
 
 #[post("/login", format = "application/x-www-form-urlencoded", data = "<login_params>", rank = 2)]
-pub fn post_login(connection: DbConn, mut cookies: &CookieJar<'_>, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
-    let username = &login_params.username;
-    let password = &login_params.password;
+pub async fn post_login(connection: DbConn, cookies: &CookieJar<'_>, login_params: Form<LoginParameters>) -> Result<Redirect, Flash<Redirect>> {
 
-    let account = Account::load_unlocked(&username, &password, &connection);
+    let LoginParameters {username, password} = login_params.into_inner();
+    let cookie_username = username.clone();
+    let cookie_password = password.clone();
+   
+    let account = connection.run(move |c| Account::load_unlocked(username.clone(), password.clone(), &c)).await;
 
     match account {
-        Ok(u) => {
-            match u.account {
-                Some(_) => {
-                    cookies.add_private(Cookie::new("username", username.to_string()));
-                    cookies.add_private(Cookie::new("password", password.to_string()));
-                    Ok(Redirect::to("/home"))
-                },
-                None    => Err(Flash::error(Redirect::to("/login"), "Invalid username/password."))
-            }
+        Ok(_) => {
+            cookies.add_private(Cookie::new("username", cookie_username));
+            cookies.add_private(Cookie::new("password", cookie_password));
+            Ok(Redirect::to("/home"))
         },
         Err(_) => Err(Flash::error(Redirect::to("/login"), "Invalid username/password.")),
     }
 }
 
 #[post("/logout")]
-pub fn logout(mut cookies: &CookieJar<'_>) -> Flash<Redirect> {
-    cookies.remove_private(Cookie::named("username"));
-    cookies.remove_private(Cookie::named("password"));
+pub fn logout(cookies: &CookieJar<'_>) -> Flash<Redirect> {
+    cookies.remove_private(Cookie::named("account"));
     Flash::success(Redirect::to("/login"), "Successfully logged out.")
 }
 
 #[get("/home")]
-pub fn index(connection: DbConn, user: LoggedInUser) -> Template {
+pub async fn index(connection: DbConn, user: LoggedInUser) -> Template {
 
-    let admin_user = Account::load_unlocked(&user.username, &user.password, &connection).unwrap();
-    let clients = Client::load_by_user(&admin_user, &connection).unwrap();
-    let view_clients = ClientView::from_client_applications(&clients);
+    let LoggedInUser { username: username, password: password} = user;
+    let display_user = username.clone();
+
+    let admin_user = 
+        connection.run(
+            move
+            |c| Account::load_unlocked(username, password, c).unwrap()
+            ).await;
+
+    let display_key = admin_user.public_key.clone();
+
+    let applications = 
+        connection.run(
+            move
+            |c| Application::load_all_for_account(&admin_user, c).unwrap()
+            ).await;
+
+    let view_applications = ApplicationView::from_applications(&applications);
+
     let context = AdminContext {
         title: "Home".to_string(),
-        username: admin_user.username.to_owned(),
+        username: display_user,
+        public_key: encode(display_key),
+        applications: view_applications,
     };
+
     Template::render("home", &context)
 }
 

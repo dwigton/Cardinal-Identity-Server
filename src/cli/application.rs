@@ -194,7 +194,7 @@ fn scope(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
     let write_scope_codes = matches.values_of_lossy("write");
     let read_scope_codes = matches.values_of_lossy("read");
 
-    let account = Account::load_unlocked(&account_name, &password, &connection)
+    let account = Account::load_unlocked(account_name, password, &connection)
         .expect("Could not load account");
 
     let application = Application::load_by_code(&application_code, &account, &connection)
@@ -312,7 +312,7 @@ fn delete(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         bail!("Password reset cancelled.");
     }
 
-    let account = Account::load_unlocked(&account_name, &password, &connection)
+    let account = Account::load_unlocked(account_name, password, &connection)
         .context("No such username and password.")?;
 
     Application::load_by_code(&application_code, &account, &connection)
@@ -351,7 +351,7 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         None => get_input("Application server url: "),
     };
 
-    let account = Account::load_unlocked(&account_name, &password, &connection)
+    let account = Account::load_unlocked(account_name, password, &connection)
         .expect("Account and password not recognized.");
 
     let application = Application::new(&application_code, &description, &server_url, &account);

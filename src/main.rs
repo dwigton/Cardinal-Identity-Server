@@ -7,7 +7,7 @@ mod cli;
 mod database;
 mod encryption;
 mod model;
-//mod web;
+mod web;
 mod error;
 
 use clap::App;
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
         .subcommand(cli::init::init())
         //.subcommand(cli::scope::init())
         //.subcommand(cli::sign::init())
- //       .subcommand(SubCommand::with_name("run").about("Runs the identity server."))
+        .subcommand(SubCommand::with_name("run").about("Runs the identity server."))
         ;
 
     let matches: ArgMatches = app.get_matches();
@@ -38,15 +38,9 @@ fn main() -> Result<()> {
         ("account", Some(m))     => cli::account::run(m),
         ("application", Some(m)) => cli::application::run(m),
         ("client", Some(m))      => cli::client::run(m),
-        //("run", _)               => web::run(),
+        ("run", _)               => web::run(),
         (c, _)                   => bail!("Subcommand {} not recognized.", c),
     };
-
-    /*
-    if matches.is_present("run") {
-        web::run();
-    }
-    */
 
     status
 }

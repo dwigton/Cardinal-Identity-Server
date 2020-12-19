@@ -34,7 +34,7 @@ pub struct InsertClient {
     pub signature: Vec<u8>,
 }
 
-#[derive(Queryable)]
+#[derive(Queryable, Serialize)]
 pub struct Client {
     pub client_id: Vec<u8>,
     pub application_id: i32,

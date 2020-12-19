@@ -158,7 +158,7 @@ fn revoke(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
     let write_scope_codes = matches.values_of_lossy("write_scope");
     let read_scope_codes = matches.values_of_lossy("read_scope");
     // load account
-    let account = Account::load_unlocked(&account, &password, &connection)
+    let account = Account::load_unlocked(account, password, &connection)
         .context("Account and password not recognized.")?;
 
     // load client
@@ -227,7 +227,7 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
     let write_scope_codes = matches.values_of_lossy("write_scope");
     let read_scope_codes = matches.values_of_lossy("read_scope");
     // load account
-    let account = Account::load_unlocked(&account, &password, &connection)
+    let account = Account::load_unlocked(account, password, &connection)
         .context("Account and password not recognized.")?;
 
     // load application
