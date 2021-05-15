@@ -17,12 +17,14 @@
 	<thead>
 	<tr>
 		<th>Application</th>
-		<th>Client Id</th>
-		<th>Status</th>
-		<th>Scope</th>
 	</tr>
 	</thead>
 	<tbody>
+	{% for application in applications %}
+		<tr>
+			<td>{{application.name}}</td>
+		</tr>
+	{% endfor %}
 	</tbody>
 </table>
 {% endblock content %}

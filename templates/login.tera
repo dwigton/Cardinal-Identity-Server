@@ -3,8 +3,8 @@
 {% block head %}
 	{{super() }}
 {% endblock head %}
-{% block header %}
-{% endblock header %}
+{%- block header -%}
+{%- endblock header -%}
 {% block content %}
 <form action="login" method="post"> 
 <label for="username">Username</label>

@@ -1,0 +1,21 @@
+{% extends "base" %}
+{% block title %}{{ title }}{% endblock title %}
+{% block head %}
+	{{super() }}
+{% endblock head %}
+{%- block header -%}
+{%- endblock header -%}
+{% block content %}
+<div>
+	</h1>Create Account to join {{ application }} on {{application_server}}</h1>
+</div>
+<form action="login" method="post"> 
+	<label for="username">Username</label>
+	<input id="username" name="username" type="text" placeholder="Enter Username" required>
+	<label for="password">Password</label>
+	<input id="password" name="password" type="password" placeholder="Enter Password" required>
+	<label for="password2">Retype Password</label>
+	<input id="password2" name="password2" type="password" placeholder="Reenter Password" required>
+	<button type="submit">Join</button>
+</form>
+{% endblock content %}

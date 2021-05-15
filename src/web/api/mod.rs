@@ -36,3 +36,6 @@ pub fn token() ->Json<JsonValue> {
 pub fn revoke() ->Json<JsonValue> {
     Json(json!({ "status": "ok"}))
 }
+
+//#[post("/account/add")]
+//pub fn add_account() -> Json<JsonValue>

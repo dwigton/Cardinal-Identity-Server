@@ -1,0 +1,5 @@
+code: APPICATION_CODE,
+account_id: 32_BYTE_PUBLIC_KEY,
+server_url: URL_OF_PUBLIC_SERVER,
+date_signed: UNIX_TIMESTAMP,
+

@@ -1,6 +1,14 @@
 use crate::model::client::Client;
 use crate::model::application::Application;
 
+/// Data to pass join application page
+#[derive(Serialize)]
+pub struct joinContext {
+    pub username: String,
+    pub application: String,
+    pub application_server: String,
+}
+
 /// Data to pass to the login screen
 #[derive(Serialize)]
 pub struct LoginContext {

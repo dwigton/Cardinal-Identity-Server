@@ -8,7 +8,7 @@ use rocket_contrib::templates::Template;
 use crate::model::account::Account;
 use crate::model::application::Application;
 use crate::database::DbConn;
-use self::view::{AdminContext, LoginContext, ApplicationView};
+use self::view::{JoinContext, AdminContext, LoginContext, ApplicationView};
 use base64::encode;
 
 #[derive(FromForm, Clone)]
@@ -25,6 +25,14 @@ pub struct LoggedInUser {
 pub struct LoggedInAdmin {
     username: String,
     password: String,
+}
+
+#[derive(FromForm, Clone)]
+pub struct NewAccountParameters {
+    username: String,
+    application: String,
+    application_server: String,
+    return_url: String,
 }
 
 #[rocket::async_trait]
@@ -151,4 +159,15 @@ pub fn user_logged_in_root(_user: LoggedInUser) -> Redirect {
 #[get("/home", rank = 2)]
 pub fn forbidden_index() -> Redirect {
     Redirect::to("/login")
+}
+
+#[post("/join")]
+pub fn join_server(request_parameters: NewAccountParameters) -> {
+    let context = JoinContext {
+        username: "henry",
+        application: "headline",
+        application_server: "http://127.0.0.1:8080",
+    }
+
+    Template::render("join", &context)
 }
