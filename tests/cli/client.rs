@@ -7,7 +7,7 @@ use crate::cli::application::{create_application, delete_application, add_scopes
 
 #[test]
 fn test_create_client() {
-    create_account("client_user1", "test_password");
+    create_account("client_user1", "client_email01@example.com", "test_password");
     create_application("client_user1", "test_password", "spout1", "Spout", "https://spout.example.com");
 
     add_scopes(

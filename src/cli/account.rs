@@ -20,6 +20,14 @@ pub fn init() -> App<'static, 'static> {
                         .takes_value(true),
                 )
                 .arg(
+                    Arg::with_name("email")
+                        .short("e")
+                        .long("email")
+                        .help("Email address associated with the account.")
+                        .value_name("USERNAME")
+                        .takes_value(true),
+                )
+                .arg(
                     Arg::with_name("password")
                         .short("p")
                         .long("password")
@@ -186,6 +194,11 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         None => get_input("New account name: "),
     };
 
+    let email = match matches.value_of("email") {
+        Some(u) => u.to_owned(),
+        None => get_input("Email Address for new account: "),
+    };
+
     let password = match matches.value_of("password") {
         Some(p) => p.to_owned(),
         None => get_new_password("New account password: ", "Reenter password: "),
@@ -196,7 +209,7 @@ fn add(matches: &ArgMatches, connection: &MyConnection) -> Result<()> {
         None => get_new_password("New account export key: ", "Reenter export key: "),
     };
 
-    let account = Account::new(&username, &password, &export_key, false);
+    let account = Account::new(&username, &email, &password, &export_key, false);
 
     account.save(&connection)?;
 

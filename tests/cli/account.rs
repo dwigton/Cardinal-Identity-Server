@@ -6,14 +6,14 @@ use std::panic;
 
 #[test]
 fn test_create_account() {
-    create_account("test_user1", "test_password");
+    create_account("test_user1", "test_email1@example.com", "test_password");
     delete_account("test_user1", "test_password");
 }
 
 #[test]
 fn test_change_account_password() {
 
-    create_account("test_user2", "test_password");
+    create_account("test_user2", "test_email2@example.com", "test_password");
 
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
@@ -43,13 +43,15 @@ fn test_change_account_password() {
     delete_account("test_user2", "new_password");
 }
 
-pub fn create_account(name: &str, password: &str) {
+pub fn create_account(name: &str, email: &str, password: &str) {
     let mut cmd = Command::cargo_bin("idvault").unwrap();
 
     cmd.arg("account")
         .arg("add")
         .arg("-a")
         .arg(name)
+        .arg("-e")
+        .arg(email)
         .arg("-p")
         .arg(password)
         .arg("-x")

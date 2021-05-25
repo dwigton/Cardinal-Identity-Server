@@ -1,6 +1,7 @@
 CREATE TABLE account(
     id                     SERIAL          PRIMARY KEY NOT NULL,
     name                   VARCHAR (256)   UNIQUE      NOT NULL,
+	email                  VARCHAR (256)   UNIQUE      NOT NULL,
     password_hash  		   VARCHAR (256)               NOT NULL,
     export_key_hash        VARCHAR (256)               NOT NULL,
     public_key             BYTEA                       NOT NULL,

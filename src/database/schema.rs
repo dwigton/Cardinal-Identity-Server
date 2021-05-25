@@ -2,6 +2,7 @@ table! {
     account (id) {
         id -> Int4,
         name -> Varchar,
+        email -> Varchar,
         password_hash -> Varchar,
         export_key_hash -> Varchar,
         public_key -> Bytea,

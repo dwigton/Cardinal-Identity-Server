@@ -6,7 +6,7 @@ use crate::cli::account::{create_account, delete_account};
 
 #[test]
 fn test_create_application() {
-    create_account("application_user1", "test_password");
+    create_account("application_user1", "application_email1@example.com", "test_password");
     create_application("application_user1", "test_password", "spout1", "Spout", "https://spout.example.com");
     delete_application("application_user1", "test_password", "spout1");
     delete_account("application_user1", "test_password");
@@ -14,7 +14,7 @@ fn test_create_application() {
 
 #[test]
 fn test_add_remove_scopes() {
-    create_account("application_user2", "test_password");
+    create_account("application_user2", "application_email2@example.com", "test_password");
     create_application("application_user2", "test_password", "spout1", "Spout", "https://spout.example.com");
 
     add_scopes(

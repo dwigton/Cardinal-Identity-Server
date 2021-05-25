@@ -30,6 +30,7 @@ pub struct Account {}
 #[table_name = "account"]
 pub struct NewAccount {
     pub name: String,
+    pub email: String,
     pub password_hash: String,
     pub export_key_hash: String,
     pub public_key: Vec<u8>,
@@ -44,6 +45,7 @@ pub struct NewAccount {
 pub struct LockedAccount {
     pub id: i32,
     pub name: String,
+    pub email: String,
     pub password_hash: String,
     pub export_key_hash: String,
     pub public_key: Vec<u8>,
@@ -57,6 +59,7 @@ pub struct LockedAccount {
 pub struct UnlockedAccount {
     pub id: i32,
     pub name: String,
+    pub email: String,
     pub password_hash: String,
     pub export_key_hash: String,
     pub public_key: Vec<u8>,
@@ -69,8 +72,8 @@ pub struct UnlockedAccount {
 }
 
 impl Account {
-    pub fn new(name: &str, password: &str, export_key: &str, is_admin: bool) -> NewAccount {
-        NewAccount::with_key(name, password, export_key, SigningKey::new(), is_admin)
+    pub fn new(name: &str, email: &str, password: &str, export_key: &str, is_admin: bool) -> NewAccount {
+        NewAccount::with_key(name, email, password, export_key, SigningKey::new(), is_admin)
     }
 
     pub fn load_locked(name: &str, connection: &MyConnection) -> CommonResult<LockedAccount> {
@@ -100,6 +103,7 @@ impl Account {
 impl NewAccount {
     pub fn with_key(
         name: &str,
+        email: &str,
         password: &str,
         export_key: &str,
         signing_key: SigningKey,
@@ -116,6 +120,7 @@ impl NewAccount {
 
         NewAccount {
             name: name.to_owned(),
+            email: email.to_owned(),
             password_hash,
             export_key_hash,
             public_key,
@@ -128,6 +133,7 @@ impl NewAccount {
 
     pub fn from_portable(
         name: &str,
+        email: &str,
         password: &str,
         export_key: &str,
         import_passphrase: &str,
@@ -144,6 +150,7 @@ impl NewAccount {
 
         Ok(NewAccount::with_key(
             name,
+            email,
             password,
             export_key,
             signing_key,
@@ -176,6 +183,7 @@ impl LockedAccount {
         Ok(UnlockedAccount {
             id: self.id,
             name: self.name.clone(),
+            email: self.email.clone(),
             password_hash: self.password_hash.clone(),
             export_key_hash: self.export_key_hash.clone(),
             public_key: self.public_key.clone(),
@@ -205,6 +213,7 @@ impl From<UnlockedAccount> for LockedAccount {
         LockedAccount {
             id: unlocked.id,
             name: unlocked.name.clone(),
+            email: unlocked.email.clone(),
             password_hash: unlocked.password_hash.clone(),
             export_key_hash: unlocked.export_key_hash.clone(),
             public_key: unlocked.public_key.clone(),
@@ -319,7 +328,7 @@ mod tests {
     #[test]
     fn create_account() {
         let connection = establish_connection().unwrap();
-        let account = Account::new("Test01", "password", "passphrase", false);
+        let account = Account::new("Test01", "email01@example.com", "password", "passphrase", false);
 
         let locked = account.save(&connection).expect("could not save");
 
@@ -341,7 +350,7 @@ mod tests {
     #[test]
     fn sign_and_verify() {
         let connection = establish_connection().unwrap();
-        let account = Account::new("Test04", "password", "passphrase", false);
+        let account = Account::new("Test04", "email04@example.com",  "password", "passphrase", false);
 
         let locked = account.save(&connection).expect("Could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
@@ -363,7 +372,7 @@ mod tests {
     #[test]
     fn unlock_account() {
         let connection = establish_connection().unwrap();
-        let account = Account::new("Test02", "password", "passphrase", false);
+        let account = Account::new("Test02", "email02@example.com", "password", "passphrase", false);
 
         let locked = account.save(&connection).expect("Could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");
@@ -378,6 +387,7 @@ mod tests {
 
         assert_eq!(unlocked.id, unlocked_loaded.id);
         assert_eq!(unlocked.name, unlocked_loaded.name);
+        assert_eq!(unlocked.email, unlocked_loaded.email);
         assert_eq!(unlocked.password_hash, unlocked_loaded.password_hash);
         assert_eq!(unlocked.export_key_hash, unlocked_loaded.export_key_hash);
         assert_eq!(unlocked.public_key, unlocked_loaded.public_key);
@@ -399,7 +409,7 @@ mod tests {
     #[test]
     fn change_password() {
         let connection = establish_connection().unwrap();
-        let account = Account::new("Test03", "password", "passphrase", false);
+        let account = Account::new("Test03", "email03@example.com", "password", "passphrase", false);
 
         let locked = account.save(&connection).expect("could not save");
         let unlocked = locked.to_unlocked("password").expect("Could not unlock");

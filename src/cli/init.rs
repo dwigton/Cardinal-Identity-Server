@@ -28,13 +28,14 @@ pub fn run() -> Result<()> {
     set_env_variable("DATABASE_URL", database_url.as_str());
 
     let admin_user_name = get_input("Administrator User Name: ");
+    let email = get_input("Administrator Email: ");
     let password = get_new_password(
         "Administrator User Password: ",
         "Reenter Admin User Password: ",
     );
     let export_key = encode(&random_int_256());
 
-    let account = Account::new(&admin_user_name, &password, &export_key, true);
+    let account = Account::new(&admin_user_name, &email, &password, &export_key, true);
 
     let connection = establish_connection()?;
 
