@@ -117,7 +117,7 @@ pub fn logout(cookies: &CookieJar<'_>) -> Flash<Redirect> {
 #[get("/home")]
 pub async fn index(connection: DbConn, user: LoggedInUser) -> Template {
 
-    let LoggedInUser { username: username, password: password} = user;
+    let LoggedInUser { username, password} = user;
     let display_user = username.clone();
 
     let admin_user = 
@@ -161,13 +161,13 @@ pub fn forbidden_index() -> Redirect {
     Redirect::to("/login")
 }
 
-#[post("/join")]
-pub fn join_server(request_parameters: NewAccountParameters) -> {
+#[post("/join", format = "application/x-www-form-urlencoded", data = "<request_parameters>", rank = 2)]
+pub fn join_server(connection: DbConn, cookies: &CookieJar<'_>, request_parameters: Form<NewAccountParameters>) -> Template {
     let context = JoinContext {
-        username: "henry",
-        application: "headline",
-        application_server: "http://127.0.0.1:8080",
-    }
+        username: "henry".to_string(),
+        application: "headline".to_string(),
+        application_server: "http://127.0.0.1:8080".to_string(),
+    };
 
     Template::render("join", &context)
 }
