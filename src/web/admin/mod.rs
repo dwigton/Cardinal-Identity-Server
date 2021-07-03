@@ -29,7 +29,6 @@ pub struct LoggedInAdmin {
 
 #[derive(FromForm, Clone)]
 pub struct NewAccountParameters {
-    username: String,
     application: String,
     application_server: String,
     return_url: String,
@@ -75,6 +74,30 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoggedInAdmin {
         };
 
         Outcome::Success(LoggedInAdmin{
+            username,
+            password,
+        })
+    }
+}
+
+// TODO check api_key to allow account creation.
+#[rocket::async_trait]
+impl<'a, 'r> FromRequest<'a, 'r> for NewAccountParameters{
+    type Error = ();
+
+    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+
+        let username: String = match request.cookies().get_private("username") {
+            Some(c) => c.value().to_owned(),
+            None => return Outcome::Forward(()),
+        };
+         
+        let password: String = match request.cookies().get_private("password") {
+            Some(c) => c.value().to_owned(),
+            None => return Outcome::Forward(()),
+        };
+
+        Outcome::Success(LoggedInUser{
             username,
             password,
         })
@@ -161,10 +184,18 @@ pub fn forbidden_index() -> Redirect {
     Redirect::to("/login")
 }
 
-#[post("/join", format = "application/x-www-form-urlencoded", data = "<request_parameters>", rank = 2)]
+#[get("/join")]
 pub fn join_server(connection: DbConn, cookies: &CookieJar<'_>, request_parameters: Form<NewAccountParameters>) -> Template {
+    let NewAccountParameters {application, application_server, return_url} = request_parameters.into_inner();
+    let cookie_application        = application.clone();
+    let cookie_application_server = application_server.clone();
+    let cookie_return_url         = return_url.clone();
+
+            cookies.add_private(Cookie::new("application", cookie_application));
+            cookies.add_private(Cookie::new("application_server", cookie_application_server));
+            cookies.add_private(Cookie::new("return_url", cookie_return_url));
+
     let context = JoinContext {
-        username: "henry".to_string(),
         application: "headline".to_string(),
         application_server: "http://127.0.0.1:8080".to_string(),
     };
