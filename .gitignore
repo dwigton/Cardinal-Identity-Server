@@ -1,6 +1,8 @@
 /target
+/.vscode
 **/*.rs.bk
 *.swp
 *.swo
 .env
 Cargo.lock
+scaffold.sh
