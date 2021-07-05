@@ -4,6 +4,7 @@ use rocket::response::{Redirect, Flash};
 use rocket::request::{self, FromRequest, Form, Request};
 use rocket::outcome::Outcome;
 use rocket::http::{Cookie, CookieJar};
+use rocket::form::Form;
 use rocket_contrib::templates::Template;
 use crate::model::account::Account;
 use crate::model::application::Application;
@@ -80,6 +81,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoggedInAdmin {
     }
 }
 
+/*
 // TODO check api_key to allow account creation.
 #[rocket::async_trait]
 impl<'a, 'r> FromRequest<'a, 'r> for NewAccountParameters{
@@ -97,12 +99,14 @@ impl<'a, 'r> FromRequest<'a, 'r> for NewAccountParameters{
             None => return Outcome::Forward(()),
         };
 
-        Outcome::Success(LoggedInUser{
-            username,
-            password,
+        Outcome::Success(NewAccountParameters{
+            application: String,
+            application_server: String,
+            return_url: String,
         })
     }
 }
+*/
 
 #[get("/login")]
 pub async fn login() -> Template {
@@ -184,9 +188,9 @@ pub fn forbidden_index() -> Redirect {
     Redirect::to("/login")
 }
 
-#[get("/join")]
-pub fn join_server(connection: DbConn, cookies: &CookieJar<'_>, request_parameters: Form<NewAccountParameters>) -> Template {
-    let NewAccountParameters {application, application_server, return_url} = request_parameters.into_inner();
+#[get("/join?<application_server>&<application>&<return_url>")]
+pub fn join_server(connection: DbConn, cookies: &CookieJar<'_>, application_server: &str, application: &str, return_url: &str) -> Template {
+    //let NewAccountParameters {application, application_server, return_url} = request_parameters.into_inner();
     let cookie_application        = application.clone();
     let cookie_application_server = application_server.clone();
     let cookie_return_url         = return_url.clone();

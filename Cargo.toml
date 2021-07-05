@@ -10,8 +10,7 @@ diesel = { version = "1.4.5", features = ["postgres", "chrono"] }
 r2d2-diesel = "1.0.0"
 r2d2 = "0.8.9"
 dotenv = "0.15"
-rocket = { git = "https://github.com/SergioBenitez/Rocket", features = ["secrets", "tls"]}
-rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket", features = ["databases", "json", "tera_templates", "serve", "diesel_postgres_pool"] }
+rocket = { version = "0.5.0-rc.1", features = ["secrets", "tls"]}
 serde = "1.0.117"
 serde_json = "1.0.59"
 serde_derive = "1.0.117"
