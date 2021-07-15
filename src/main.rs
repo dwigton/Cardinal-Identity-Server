@@ -1,6 +1,7 @@
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate rocket_sync_db_pools;
 
 mod cli;
 mod database;

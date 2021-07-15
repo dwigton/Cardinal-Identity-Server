@@ -1,9 +1,9 @@
-use crate::model::client::Client;
 use crate::model::application::Application;
 
 /// Data to pass join application page
 #[derive(Serialize)]
 pub struct JoinContext {
+    pub title: String,
     pub application: String,
     pub application_server: String,
 }

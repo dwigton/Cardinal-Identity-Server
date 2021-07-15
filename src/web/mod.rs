@@ -1,21 +1,21 @@
 mod admin;
 mod api;
-use rocket_contrib::templates::Template;
-use rocket_contrib::serve::StaticFiles;
+use rocket_dyn_templates::Template;
+use rocket::fs::{FileServer, relative};
 use rocket::tokio::runtime::Runtime;
 use crate::database::{DbConn};
 use anyhow::Result;
 
 pub fn run() -> Result<()> {
-    let mut rt = Runtime::new()?;
+    let rt = Runtime::new()?;
 
     rt.block_on(
-    rocket::ignite()
+    rocket::build()
         .attach(DbConn::fairing())
         .mount("/", routes![
-               api::authorize, 
-               api::token, 
-               api::revoke, 
+               //api::authorize, 
+               //api::token, 
+               //api::revoke, 
                admin::login,
                admin::post_login, 
                admin::index,
@@ -23,9 +23,10 @@ pub fn run() -> Result<()> {
                admin::logout,
                admin::user_logged_in_root,
                admin::not_logged_in_root,
+               admin::join_server,
         ])
-        .mount("/public", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/media")))
-        .mount("/css", StaticFiles::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src/web/css")))
+        .mount("/public", FileServer::from(relative!("/src/web/media")))
+        .mount("/css", FileServer::from(relative!("/src/web/css")))
         .attach(Template::fairing())
         .launch())?;
 

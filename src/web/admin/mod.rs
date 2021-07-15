@@ -1,11 +1,11 @@
 mod view;
 
 use rocket::response::{Redirect, Flash};
-use rocket::request::{self, FromRequest, Form, Request};
+use rocket::request::{self, FromRequest, Request};
+use rocket::form::Form;
 use rocket::outcome::Outcome;
 use rocket::http::{Cookie, CookieJar};
-use rocket::form::Form;
-use rocket_contrib::templates::Template;
+use rocket_dyn_templates::Template;
 use crate::model::account::Account;
 use crate::model::application::Application;
 use crate::database::DbConn;
@@ -36,10 +36,10 @@ pub struct NewAccountParameters {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for LoggedInUser {
+impl<'r> FromRequest<'r> for LoggedInUser {
     type Error = ();
 
-    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
 
         let username: String = match request.cookies().get_private("username") {
             Some(c) => c.value().to_owned(),
@@ -59,10 +59,10 @@ impl<'a, 'r> FromRequest<'a, 'r> for LoggedInUser {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromRequest<'a, 'r> for LoggedInAdmin {
+impl<'r> FromRequest<'r> for LoggedInAdmin {
     type Error = ();
 
-    async fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
 
         let username: String = match request.cookies().get_private("adminname") {
             Some(c) => c.value().to_owned(),
@@ -191,17 +191,18 @@ pub fn forbidden_index() -> Redirect {
 #[get("/join?<application_server>&<application>&<return_url>")]
 pub fn join_server(connection: DbConn, cookies: &CookieJar<'_>, application_server: &str, application: &str, return_url: &str) -> Template {
     //let NewAccountParameters {application, application_server, return_url} = request_parameters.into_inner();
-    let cookie_application        = application.clone();
-    let cookie_application_server = application_server.clone();
-    let cookie_return_url         = return_url.clone();
+    let cookie_application        = application.clone().to_owned();
+    let cookie_application_server = application_server.clone().to_owned();
+    let cookie_return_url         = return_url.clone().to_owned();
 
             cookies.add_private(Cookie::new("application", cookie_application));
             cookies.add_private(Cookie::new("application_server", cookie_application_server));
             cookies.add_private(Cookie::new("return_url", cookie_return_url));
 
     let context = JoinContext {
-        application: "headline".to_string(),
-        application_server: "http://127.0.0.1:8080".to_string(),
+        title: "Join Cardinal".to_string(),
+        application: application.to_string(),
+        application_server: application_server.to_string(),
     };
 
     Template::render("join", &context)

@@ -26,6 +26,7 @@ pub fn run() -> Result<()> {
     }
 
     set_env_variable("DATABASE_URL", database_url.as_str());
+    // TODO set same value in Rocket.toml
 
     let admin_user_name = get_input("Administrator User Name: ");
     let email = get_input("Administrator Email: ");
