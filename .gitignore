@@ -6,3 +6,4 @@
 .env
 Cargo.lock
 scaffold.sh
+Rocket.toml
